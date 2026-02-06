@@ -238,6 +238,9 @@ const normalizeImageUrl = (url) => {
 const isImageUrl = (url) =>
   /\.(png|jpe?g|gif|webp|bmp|svg)(\?.*)?$/i.test(url);
 
+const isPreviewHost = (url) =>
+  /dropbox\.com|drive\.google\.com|googleusercontent\.com/i.test(url);
+
 const openGallery = (orderId) => {
   const order = state.orders.find((o) => o.id === orderId);
   if (!order) return;
@@ -257,7 +260,7 @@ const openGallery = (orderId) => {
   for (let i = 0; i < previewCount; i += 1) {
     const item = document.createElement("div");
     item.className = "gallery-item";
-    if (links[i] && isImageUrl(links[i])) {
+    if (links[i] && (isImageUrl(links[i]) || isPreviewHost(links[i]))) {
       item.style.backgroundImage = `url('${links[i]}')`;
       item.dataset.src = links[i];
     } else if (links[i]) {
@@ -277,13 +280,13 @@ const closeGallery = () => {
 };
 
 const openLightbox = (src) => {
-  if (src && isImageUrl(src)) {
+  if (src && (isImageUrl(src) || isPreviewHost(src))) {
     el("lightboxImg").src = src;
     el("lightbox").classList.remove("hidden");
     return;
   }
 
-  alert("Please use direct image links (.jpg/.png) or Dropbox/Drive file links.");
+  alert("Link này không hiển thị được. Hãy dùng link ảnh trực tiếp hoặc link file Dropbox/Google Drive.");
 };
 
 const closeLightbox = () => {
