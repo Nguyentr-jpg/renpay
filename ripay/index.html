@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ripay — Payments & Downloads</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div id="app">
+      <header class="topbar">
+        <div class="brand">
+          <div class="logo">ri</div>
+          <div>
+            <div class="name">ripay</div>
+            <div class="tag">Payments & downloads for real estate media editing</div>
+          </div>
+        </div>
+        <div id="userBadge" class="user-badge hidden"></div>
+      </header>
+
+      <main>
+        <section id="loginScreen" class="screen">
+          <div class="hero">
+            <div class="hero-left">
+              <h1>Fast payments, safe downloads</h1>
+              <p>
+                Built for real estate photo, video, and floor plan editing. Manage orders, collect
+                card payments, and deliver watermarked previews in one place.
+              </p>
+              <div class="pill">Payment gateway: WorldFirst (demo)</div>
+              <div class="login-card">
+                <h2>Sign in</h2>
+                <p>Sign in with email to manage orders and payments.</p>
+                <label class="field">
+                  <span>Email</span>
+                  <input id="loginEmail" type="email" placeholder="name@email.com" />
+                </label>
+                <button id="btnLogin" class="btn primary">Sign in</button>
+                <div class="hint">Demo mode, no real authentication.</div>
+                <div class="hint">Subscription required to create orders.</div>
+              </div>
+            </div>
+            <div class="hero-right">
+              <div class="preview-card">
+                <div class="preview-head">Watermarked preview gallery</div>
+                <div class="preview-grid">
+                  <div class="preview-img"><span>RIPAY PREVIEW</span></div>
+                  <div class="preview-img"><span>RIPAY PREVIEW</span></div>
+                  <div class="preview-img"><span>RIPAY PREVIEW</span></div>
+                  <div class="preview-img"><span>RIPAY PREVIEW</span></div>
+                </div>
+              </div>
+              <div class="stats">
+                <div>
+                  <div class="stat-num">2,840+</div>
+                  <div class="stat-label">Orders processed</div>
+                </div>
+                <div>
+                  <div class="stat-num">98.7%</div>
+                  <div class="stat-label">Successful payments</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="appScreen" class="screen hidden">
+          <div class="dashboard">
+            <aside class="sidebar">
+              <div class="seller">
+                <div class="seller-avatar">R</div>
+                <div>
+                  <div id="sellerName" class="seller-name">User</div>
+                  <div id="sellerRole" class="seller-role">Account</div>
+                </div>
+              </div>
+              <nav class="nav">
+                <button class="nav-item active" data-tab="overview">Overview</button>
+                <button class="nav-item" data-tab="create">Create Order</button>
+                <button class="nav-item" data-tab="payments">Payments</button>
+              </nav>
+              <div class="support">
+                <div class="support-title">Feedback</div>
+                <div class="support-text">Share a quick note or request.</div>
+                <button id="btnOpenFeedback" class="btn ghost">Open feedback form</button>
+                <button id="btnLogout" class="btn ghost">Sign out</button>
+              </div>
+            </aside>
+
+            <section class="content">
+              <div id="tab-overview" class="tab active">
+                <div class="tab-head">
+                  <div>
+                    <h2>Overview</h2>
+                    <p>All orders waiting for payment or already paid.</p>
+                  </div>
+                  <button id="btnBulkPay" class="btn primary">Pay selected orders</button>
+                </div>
+                <div class="order-table">
+                  <div class="order-row order-header">
+                    <div></div>
+                    <div>Order name</div>
+                    <div>Order ID</div>
+                    <div>Client ID</div>
+                    <div>Quantity</div>
+                    <div>Status</div>
+                    <div></div>
+                  </div>
+                  <div id="orderList"></div>
+                </div>
+              </div>
+
+              <div id="tab-create" class="tab">
+                <div class="tab-head">
+                  <div>
+                    <h2>Create Order</h2>
+                    <p>Create one or multiple orders at once.</p>
+                  </div>
+                </div>
+                <div class="form-card">
+                  <div class="field">
+                    <span>Order name</span>
+                    <div id="lineItems"></div>
+                    <button id="btnAddLine" class="btn ghost">+ Add order</button>
+                  </div>
+
+                  <div class="actions">
+                    <button id="btnCreate" class="btn primary">Apply</button>
+                  </div>
+                </div>
+              </div>
+
+              <div id="tab-payments" class="tab">
+                <div class="tab-head">
+                  <div>
+                    <h2>Payments</h2>
+                    <p>Payment history from customers.</p>
+                  </div>
+                </div>
+                <div class="payment-table">
+                  <div class="payment-row payment-header">
+                    <div>Date</div>
+                    <div>Status</div>
+                    <div>Customer ID</div>
+                    <div>Amount</div>
+                    <div>Order ID</div>
+                  </div>
+                  <div id="paymentList"></div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div id="galleryModal" class="modal fullscreen hidden">
+      <div class="modal-content">
+        <div class="modal-head">
+          <div>
+            <h3 id="galleryTitle">Gallery</h3>
+            <div class="modal-sub">Watermarked preview images. Click any image to view full screen.</div>
+          </div>
+          <button id="btnCloseGallery" class="btn ghost">Close</button>
+        </div>
+        <div id="galleryGrid" class="gallery-grid"></div>
+        <div class="modal-actions">
+          <button id="btnPaySingle" class="btn primary">Pay</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="payModal" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-head">
+          <div>
+            <h3>Pay for orders</h3>
+            <div class="modal-sub">WorldFirst gateway (demo)</div>
+          </div>
+          <button id="btnClosePay" class="btn ghost">Close</button>
+        </div>
+        <div class="pay-grid">
+          <label class="field">
+            <span>Full name</span>
+            <input id="payName" type="text" placeholder="John Doe" />
+          </label>
+          <label class="field">
+            <span>Card number</span>
+            <input id="payCard" type="text" placeholder="4242 4242 4242 4242" />
+          </label>
+          <label class="field">
+            <span>Expiry</span>
+            <input id="payExp" type="text" placeholder="MM/YY" />
+          </label>
+          <label class="field">
+            <span>CVC</span>
+            <input id="payCvc" type="text" placeholder="123" />
+          </label>
+        </div>
+        <div class="modal-actions">
+          <button id="btnConfirmPay" class="btn primary">Confirm payment</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="lightbox" class="lightbox hidden">
+      <button id="btnCloseLightbox" class="btn ghost">Close</button>
+      <div class="lightbox-content">
+        <img id="lightboxImg" alt="Preview full" />
+      </div>
+    </div>
+
+    <div id="subModal" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-head">
+          <div>
+            <h3>Subscription required</h3>
+            <div class="modal-sub">Choose a plan to create and manage orders.</div>
+          </div>
+          <button id="btnCloseSub" class="btn ghost">Close</button>
+        </div>
+        <div class="plan-grid">
+          <button class="plan-card active" data-plan="monthly">
+            <div class="plan-title">Monthly</div>
+            <div class="plan-price">$39 / month</div>
+            <div class="plan-note">Unlimited orders</div>
+          </button>
+          <button class="plan-card" data-plan="annual">
+            <div class="plan-title">Annual</div>
+            <div class="plan-price">$390 / year</div>
+            <div class="plan-note">2 months free</div>
+          </button>
+        </div>
+        <div class="modal-actions">
+          <button id="btnStartSub" class="btn primary">Start subscription</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="feedbackModal" class="modal hidden">
+      <div class="modal-content">
+        <div class="modal-head">
+          <div>
+            <h3>Feedback</h3>
+            <div class="modal-sub">Tell us what you need and we will respond by email.</div>
+          </div>
+          <button id="btnCloseFeedback" class="btn ghost">Close</button>
+        </div>
+        <div class="feedback-options">
+          <button class="chip" data-topic="Payment issue">Payment issue</button>
+          <button class="chip" data-topic="Download issue">Download issue</button>
+          <button class="chip" data-topic="Request features">Request features</button>
+          <button class="chip" data-topic="Other">Other</button>
+        </div>
+        <div class="feedback-grid">
+          <label class="field">
+            <span>Email</span>
+            <input id="feedbackEmail" type="email" placeholder="name@email.com" />
+          </label>
+          <label class="field">
+            <span>Message</span>
+            <textarea id="feedbackMessage" rows="4" placeholder="Tell us what you need"></textarea>
+          </label>
+        </div>
+        <div class="modal-actions">
+          <button id="btnFeedback" class="btn primary">Submit feedback</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
