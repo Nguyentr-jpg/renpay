@@ -202,6 +202,17 @@ const addLineItem = (item = { type: "", count: 0, link: "", unitPrice: 0 }) => {
   container.appendChild(row);
 };
 
+const parseLinks = (raw) => {
+  if (!raw) return [];
+  return raw
+    .split(/[\n,]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+};
+
+const isImageUrl = (url) =>
+  /\.(png|jpe?g|gif|webp|bmp|svg)(\?.*)?$/i.test(url);
+
 const openGallery = (orderId) => {
   const order = state.orders.find((o) => o.id === orderId);
   if (!order) return;
@@ -211,12 +222,22 @@ const openGallery = (orderId) => {
 
   const grid = el("galleryGrid");
   grid.innerHTML = "";
-  const previewCount = Math.min(order.totalCount, 16);
+  const links = order.items ? order.items.flatMap((item) => parseLinks(item.link)) : [];
+  const previewCount = links.length
+    ? links.length
+    : Math.min(order.totalCount, 16);
 
   for (let i = 0; i < previewCount; i += 1) {
     const item = document.createElement("div");
     item.className = "gallery-item";
-    item.addEventListener("click", () => openLightbox());
+    if (links[i] && isImageUrl(links[i])) {
+      item.style.backgroundImage = `url('${links[i]}')`;
+      item.dataset.src = links[i];
+    } else if (links[i]) {
+      item.dataset.src = links[i];
+      item.classList.add("link-only");
+    }
+    item.addEventListener("click", () => openLightbox(item.dataset.src));
     grid.appendChild(item);
   }
 
@@ -228,9 +249,16 @@ const closeGallery = () => {
   state.activeOrderId = null;
 };
 
-const openLightbox = () => {
-  el("lightboxImg").src =
-    "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='1600' height='1000'><defs><linearGradient id='g' x1='0' x2='1' y1='0' y2='1'><stop stop-color='%23f7e8dc'/><stop offset='1' stop-color='%23f1d6bf'/></linearGradient></defs><rect width='1600' height='1000' fill='url(%23g)'/><text x='50%25' y='50%25' font-size='64' font-family='Arial' fill='rgba(0,0,0,0.45)' text-anchor='middle' dominant-baseline='middle'>RIPAY PREVIEW</text></svg>";
+const openLightbox = (src) => {
+  if (src && isImageUrl(src)) {
+    el("lightboxImg").src = src;
+  } else if (src) {
+    window.open(src, "_blank");
+    return;
+  } else {
+    el("lightboxImg").src =
+      "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='1600' height='1000'><defs><linearGradient id='g' x1='0' x2='1' y1='0' y2='1'><stop stop-color='%23f7e8dc'/><stop offset='1' stop-color='%23f1d6bf'/></linearGradient></defs><rect width='1600' height='1000' fill='url(%23g)'/><text x='50%25' y='50%25' font-size='64' font-family='Arial' fill='rgba(0,0,0,0.45)' text-anchor='middle' dominant-baseline='middle'>RIPAY PREVIEW</text></svg>";
+  }
   el("lightbox").classList.remove("hidden");
 };
 
