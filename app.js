@@ -623,15 +623,28 @@ const setupEvents = () => {
       const data = await response.json();
 
       if (data.success && data.user) {
+        // Clear previous user's data
+        state.orders = [];
+        state.payments = [];
+        localStorage.removeItem(STORAGE_KEY);
+
         state.user = data.user;
         sessionStorage.setItem(SESSION_KEY, JSON.stringify(data.user));
         showApp(data.user);
+
+        // Fetch current user's orders from database
+        await fetchOrdersFromDB();
       } else {
         alert(data.error || "Sign in failed. Please try again.");
       }
     } catch (err) {
       console.error("Login error:", err);
       // Fallback: allow offline login with email only
+      // Clear previous user's data
+      state.orders = [];
+      state.payments = [];
+      localStorage.removeItem(STORAGE_KEY);
+
       const fallbackUser = { id: null, email, name: email.split("@")[0], role: "CLIENT" };
       state.user = fallbackUser;
       sessionStorage.setItem(SESSION_KEY, JSON.stringify(fallbackUser));
@@ -644,7 +657,10 @@ const setupEvents = () => {
 
   el("btnLogout").addEventListener("click", () => {
     state.user = null;
+    state.orders = [];
+    state.payments = [];
     sessionStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem(STORAGE_KEY);
     el("loginScreen").classList.remove("hidden");
     el("appScreen").classList.add("hidden");
     el("userBadge").classList.add("hidden");
@@ -926,6 +942,11 @@ const restoreSession = () => {
     if (!raw) return false;
     const user = JSON.parse(raw);
     if (user && user.email) {
+      // Clear any stale localStorage data
+      localStorage.removeItem(STORAGE_KEY);
+      state.orders = [];
+      state.payments = [];
+
       state.user = user;
       showApp(user);
       return true;
@@ -938,7 +959,8 @@ const restoreSession = () => {
 };
 
 const init = () => {
-  loadState();
+  // Don't load localStorage on init - we'll fetch from database instead
+  // This prevents showing the wrong user's data
   renderOrders();
   renderPayments();
   renderLineItems();
