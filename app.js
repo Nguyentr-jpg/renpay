@@ -430,11 +430,12 @@ const getOrderAmount = (order) => {
   return 0;
 };
 
-const markPaid = (orderIds) => {
+const markPaid = async (orderIds) => {
   const today = new Date().toISOString().slice(0, 10);
-  orderIds.forEach((id) => {
+
+  for (const id of orderIds) {
     const order = state.orders.find((o) => o.id === id);
-    if (!order || order.status === "paid") return;
+    if (!order || order.status === "paid") continue;
     order.status = "paid";
     const amount = Number(getOrderAmount(order).toFixed(2));
 
@@ -446,7 +447,24 @@ const markPaid = (orderIds) => {
       orderId: order.id,
       amount,
     });
-  });
+
+    // Sync status to database
+    if (order.dbId) {
+      try {
+        await fetch("/api/orders", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            orderNumber: order.id,
+            status: "PAID",
+            paidAt: new Date().toISOString(),
+          }),
+        });
+      } catch (err) {
+        console.error("Failed to sync payment status to database:", err);
+      }
+    }
+  }
 
   saveState();
   renderOrders();
@@ -627,11 +645,25 @@ const setupEvents = () => {
 
   el("btnCloseGallery").addEventListener("click", closeGallery);
 
-  el("btnDeleteOrder").addEventListener("click", () => {
+  el("btnDeleteOrder").addEventListener("click", async () => {
     if (!state.activeOrderId) return;
     const order = state.orders.find((o) => o.id === state.activeOrderId);
     if (!order) return;
     if (!confirm(`Delete order "${order.name}"?`)) return;
+
+    // Delete from database if synced
+    if (order.dbId) {
+      try {
+        await fetch("/api/orders", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orderNumber: order.id }),
+        });
+      } catch (err) {
+        console.error("Failed to delete order from database:", err);
+      }
+    }
+
     state.orders = state.orders.filter((o) => o.id !== state.activeOrderId);
     state.selectedOrders.delete(state.activeOrderId);
     saveState();
@@ -748,6 +780,35 @@ const setupEvents = () => {
   });
 };
 
+const syncLocalOrderToDB = async (order) => {
+  try {
+    const response = await fetch("/api/orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orderName: order.name,
+        totalCount: order.totalCount,
+        totalAmount: getOrderAmount(order),
+        clientId: order.clientId,
+        clientName: order.clientName || state.user || "client@email.com",
+        userEmail: state.user || order.clientName || "client@email.com",
+        items: order.items || [],
+      }),
+    });
+
+    const data = await response.json();
+    if (data.success && data.order) {
+      // Update local order with DB info
+      order.id = data.order.orderNumber;
+      order.dbId = data.order.id;
+      return true;
+    }
+  } catch (err) {
+    console.error("Failed to sync local order to database:", err);
+  }
+  return false;
+};
+
 const fetchOrdersFromDB = async () => {
   try {
     const response = await fetch("/api/orders");
@@ -771,10 +832,43 @@ const fetchOrdersFromDB = async () => {
         dbId: o.id,
       }));
 
-      // Merge: DB orders take priority, keep local-only orders that aren't in DB
+      // Find local-only orders that need to be synced to DB
       const dbIds = new Set(dbOrders.map((o) => o.id));
       const localOnly = state.orders.filter((o) => !dbIds.has(o.id) && !o.dbId);
-      state.orders = [...dbOrders, ...localOnly];
+
+      // Push local-only orders to database
+      for (const localOrder of localOnly) {
+        await syncLocalOrderToDB(localOrder);
+      }
+
+      // After syncing, re-fetch to get the complete list
+      if (localOnly.length > 0) {
+        const refreshResponse = await fetch("/api/orders");
+        const refreshData = await refreshResponse.json();
+        if (refreshData.success && Array.isArray(refreshData.orders)) {
+          const allDbOrders = refreshData.orders.map((o) => ({
+            id: o.orderNumber,
+            name: o.orderName,
+            items: (o.items || []).map((i) => ({
+              type: i.type,
+              count: i.count,
+              link: i.link || "",
+              unitPrice: i.unitPrice,
+            })),
+            totalCount: o.totalCount,
+            totalAmount: o.totalAmount,
+            status: o.status.toLowerCase(),
+            createdAt: new Date(o.createdAt).toISOString().replace("T", " ").slice(0, 16),
+            clientId: o.clientId || "",
+            clientName: o.clientName || "",
+            dbId: o.id,
+          }));
+          state.orders = allDbOrders;
+        }
+      } else {
+        state.orders = dbOrders;
+      }
+
       saveState();
       renderOrders();
     }

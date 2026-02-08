@@ -32,6 +32,8 @@ model Order {
   user        User        @relation(fields: [userId], references: [id])
   createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz
   updatedAt   DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+  paidAt      DateTime?   @map("paid_at") @db.Timestamptz
+  completedAt DateTime?   @map("completed_at") @db.Timestamptz
   items       OrderItem[]
 
   @@map("orders")
