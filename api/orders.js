@@ -5,7 +5,7 @@ const prisma = new PrismaClient();
 module.exports = async function handler(req, res) {
   // CORS headers
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
   if (req.method === "OPTIONS") {
@@ -18,6 +18,12 @@ module.exports = async function handler(req, res) {
     }
     if (req.method === "POST") {
       return await handlePost(req, res);
+    }
+    if (req.method === "PUT") {
+      return await handlePut(req, res);
+    }
+    if (req.method === "DELETE") {
+      return await handleDelete(req, res);
     }
     return res.status(405).json({ error: "Method not allowed" });
   } catch (error) {
@@ -88,4 +94,46 @@ async function handlePost(req, res) {
   });
 
   return res.status(201).json({ success: true, order });
+}
+
+async function handlePut(req, res) {
+  const { orderNumber, status, paidAt } = req.body;
+
+  if (!orderNumber) {
+    return res.status(400).json({ error: "Missing required field: orderNumber" });
+  }
+
+  const order = await prisma.order.findUnique({ where: { orderNumber } });
+  if (!order) {
+    return res.status(404).json({ error: "Order not found" });
+  }
+
+  const updateData = {};
+  if (status) updateData.status = status.toUpperCase();
+  if (paidAt) updateData.paidAt = new Date(paidAt);
+
+  const updated = await prisma.order.update({
+    where: { orderNumber },
+    data: updateData,
+    include: { items: true },
+  });
+
+  return res.status(200).json({ success: true, order: updated });
+}
+
+async function handleDelete(req, res) {
+  const { orderNumber } = req.body;
+
+  if (!orderNumber) {
+    return res.status(400).json({ error: "Missing required field: orderNumber" });
+  }
+
+  const order = await prisma.order.findUnique({ where: { orderNumber } });
+  if (!order) {
+    return res.status(404).json({ error: "Order not found" });
+  }
+
+  await prisma.order.delete({ where: { orderNumber } });
+
+  return res.status(200).json({ success: true, deleted: orderNumber });
 }
