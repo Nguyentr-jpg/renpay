@@ -28,7 +28,18 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   } catch (error) {
     console.error("API Error:", error);
-    return res.status(500).json({ error: "Internal server error", details: error.message });
+    return res.status(500).json({
+      error: "Internal server error",
+      details: error.message,
+      code: error.code,
+      hint: error.code === "P1001"
+        ? "Cannot reach database. Check DATABASE_URL env var on Vercel."
+        : error.code === "P2021"
+        ? "Table does not exist. Run 'npx prisma db push' against your Supabase database."
+        : error.code === "P1000"
+        ? "Authentication failed. Check your DATABASE_URL credentials."
+        : undefined,
+    });
   }
 };
 
