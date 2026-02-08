@@ -1,7 +1,9 @@
 const STORAGE_KEY = "renpay-data-v1";
 
+const SESSION_KEY = "renpay-session";
+
 const state = {
-  user: null,
+  user: null, // { id, email, name, role }
   subscribed: false,
   orders: [],
   payments: [],
@@ -518,8 +520,8 @@ const createOrder = async () => {
           totalCount: item.count,
           totalAmount: amount,
           clientId,
-          clientName: state.user || "client@email.com",
-          userEmail: state.user || "client@email.com",
+          clientName: (state.user && state.user.email) || "client@email.com",
+          userEmail: (state.user && state.user.email) || "client@email.com",
           items: [item],
         }),
       });
@@ -542,7 +544,7 @@ const createOrder = async () => {
           status: data.order.status.toLowerCase(),
           createdAt,
           clientId: data.order.clientId || clientId,
-          clientName: data.order.clientName || state.user,
+          clientName: data.order.clientName || (state.user && state.user.email),
           dbId: data.order.id,
         });
       } else {
@@ -558,7 +560,7 @@ const createOrder = async () => {
           status: "unpaid",
           createdAt,
           clientId,
-          clientName: state.user || "client@email.com",
+          clientName: (state.user && state.user.email) || "client@email.com",
         });
       }
     } catch (err) {
@@ -574,7 +576,7 @@ const createOrder = async () => {
         status: "unpaid",
         createdAt,
         clientId,
-        clientName: state.user || "client@email.com",
+        clientName: (state.user && state.user.email) || "client@email.com",
       });
     }
   }
@@ -600,24 +602,52 @@ const switchTab = (tab) => {
 };
 
 const setupEvents = () => {
-  el("btnLogin").addEventListener("click", () => {
-    const name = el("loginEmail").value.trim();
-    if (!name) {
+  el("btnLogin").addEventListener("click", async () => {
+    const email = el("loginEmail").value.trim();
+    if (!email) {
       alert("Please enter your email.");
       return;
     }
-    state.user = name;
-    el("sellerName").textContent = name;
-    el("userBadge").textContent = name;
-    el("userBadge").classList.remove("hidden");
-    el("loginScreen").classList.add("hidden");
-    el("appScreen").classList.remove("hidden");
+
+    const btn = el("btnLogin");
+    btn.disabled = true;
+    btn.textContent = "Signing in...";
+
+    try {
+      const response = await fetch("/api/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.user) {
+        state.user = data.user;
+        sessionStorage.setItem(SESSION_KEY, JSON.stringify(data.user));
+        showApp(data.user);
+      } else {
+        alert(data.error || "Sign in failed. Please try again.");
+      }
+    } catch (err) {
+      console.error("Login error:", err);
+      // Fallback: allow offline login with email only
+      const fallbackUser = { id: null, email, name: email.split("@")[0], role: "CLIENT" };
+      state.user = fallbackUser;
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify(fallbackUser));
+      showApp(fallbackUser);
+    }
+
+    btn.disabled = false;
+    btn.textContent = "Sign in";
   });
 
   el("btnLogout").addEventListener("click", () => {
     state.user = null;
+    sessionStorage.removeItem(SESSION_KEY);
     el("loginScreen").classList.remove("hidden");
     el("appScreen").classList.add("hidden");
+    el("userBadge").classList.add("hidden");
   });
 
   document.querySelectorAll(".nav-item").forEach((btn) => {
@@ -792,8 +822,8 @@ const syncLocalOrderToDB = async (order) => {
         totalCount: order.totalCount,
         totalAmount: getOrderAmount(order),
         clientId: order.clientId,
-        clientName: order.clientName || state.user || "client@email.com",
-        userEmail: state.user || order.clientName || "client@email.com",
+        clientName: order.clientName || (state.user && state.user.email) || "client@email.com",
+        userEmail: (state.user && state.user.email) || order.clientName || "client@email.com",
         items: order.items || [],
       }),
     });
@@ -879,12 +909,40 @@ const fetchOrdersFromDB = async () => {
   }
 };
 
+const showApp = (user) => {
+  el("sellerName").textContent = user.name || user.email;
+  el("sellerRole").textContent = user.role || "Account";
+  el("userBadge").textContent = user.email;
+  el("userBadge").classList.remove("hidden");
+  el("loginScreen").classList.add("hidden");
+  el("appScreen").classList.remove("hidden");
+};
+
+const restoreSession = () => {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY);
+    if (!raw) return false;
+    const user = JSON.parse(raw);
+    if (user && user.email) {
+      state.user = user;
+      showApp(user);
+      return true;
+    }
+  } catch (err) {
+    console.error("Failed to restore session:", err);
+    sessionStorage.removeItem(SESSION_KEY);
+  }
+  return false;
+};
+
 const init = () => {
   loadState();
   renderOrders();
   renderPayments();
   renderLineItems();
   setupEvents();
+  // Restore session if user was previously logged in
+  restoreSession();
   // Fetch latest orders from database in background
   fetchOrdersFromDB();
 };

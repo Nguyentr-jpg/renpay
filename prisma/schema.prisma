@@ -9,32 +9,37 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid()) @db.Uuid
-  email     String   @unique
-  name      String?
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
-  orders    Order[]
+  id              String    @id @default(uuid()) @db.Uuid
+  email           String    @unique @db.VarChar(255)
+  name            String?   @db.VarChar(255)
+  passwordHash    String?   @map("password_hash") @db.VarChar(255)
+  role            String    @default("CLIENT")
+  emailVerifiedAt DateTime? @map("email_verified_at") @db.Timestamptz
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt       DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+  orders          Order[]
+  payments        Payment[]
 
   @@map("users")
 }
 
 model Order {
   id          String      @id @default(uuid()) @db.Uuid
-  orderNumber String      @unique @map("order_number")
-  orderName   String      @map("order_name")
+  orderNumber String      @unique @map("order_number") @db.VarChar(50)
+  orderName   String      @map("order_name") @db.VarChar(500)
   totalCount  Int         @map("total_count")
-  totalAmount Float       @map("total_amount")
+  totalAmount Decimal     @map("total_amount") @db.Decimal(10, 2)
   status      String      @default("UNPAID")
-  clientId    String?     @map("client_id")
-  clientName  String?     @map("client_name")
+  clientId    String?     @map("client_id") @db.VarChar(100)
+  clientName  String?     @map("client_name") @db.VarChar(255)
   userId      String      @map("user_id") @db.Uuid
-  user        User        @relation(fields: [userId], references: [id])
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz
-  updatedAt   DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
   paidAt      DateTime?   @map("paid_at") @db.Timestamptz
   completedAt DateTime?   @map("completed_at") @db.Timestamptz
   items       OrderItem[]
+  payments    Payment[]
+  files       File[]
 
   @@map("orders")
 }
@@ -43,33 +48,47 @@ model OrderItem {
   id        String   @id @default(uuid()) @db.Uuid
   orderId   String   @map("order_id") @db.Uuid
   order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  type      String
-  count     Int
-  link      String?
-  unitPrice Float    @map("unit_price")
+  type      String   @map("item_type") @db.VarChar(50)
+  count     Int      @map("quantity")
+  unitPrice Decimal  @map("unit_price") @db.Decimal(10, 2)
+  subtotal  Decimal  @default(0) @db.Decimal(10, 2)
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
 
   @@map("order_items")
 }
 
 model File {
-  id        String   @id @default(uuid()) @db.Uuid
-  name      String
-  url       String
-  orderId   String?  @map("order_id") @db.Uuid
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  id            String    @id @default(uuid()) @db.Uuid
+  orderId       String    @map("order_id") @db.Uuid
+  order         Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  fileName      String    @map("file_name") @db.VarChar(500)
+  fileType      String    @map("file_type") @db.VarChar(50)
+  fileSize      BigInt    @map("file_size")
+  storageBucket String    @map("storage_bucket") @db.VarChar(100)
+  storagePath   String    @map("storage_path") @db.VarChar(1000)
+  publicUrl     String?   @map("public_url")
+  hasWatermark  Boolean   @default(false) @map("has_watermark")
+  uploadedAt    DateTime  @default(now()) @map("uploaded_at") @db.Timestamptz
+  expiresAt     DateTime? @map("expires_at") @db.Timestamptz
 
   @@map("files")
 }
 
 model Payment {
-  id         String   @id @default(uuid()) @db.Uuid
-  date       String
-  status     String   @default("Paid")
-  customerId String   @map("customer_id")
-  orderId    String   @map("order_id")
-  amount     Float
-  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+  id              String    @id @default(uuid()) @db.Uuid
+  paymentNumber   String    @unique @map("payment_number") @db.VarChar(50)
+  orderId         String    @map("order_id") @db.Uuid
+  order           Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  userId          String    @map("user_id") @db.Uuid
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gateway         String    @default("STRIPE")
+  transactionId   String?   @map("transaction_id") @db.VarChar(255)
+  amount          Decimal   @db.Decimal(10, 2)
+  currency        String    @default("USD") @db.VarChar(10)
+  status          String    @default("PENDING")
+  gatewayResponse Json?     @map("gateway_response")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  completedAt     DateTime? @map("completed_at") @db.Timestamptz
 
   @@map("payments")
 }
