@@ -503,8 +503,11 @@ const markPaid = async (orderIds) => {
 // Helper function to fetch media from Dropbox/Google Drive links
 const fetchMediaFromLink = async (link) => {
   if (!link || (!link.includes('dropbox.com') && !link.includes('drive.google.com'))) {
+    console.log('Not a Dropbox/Drive link:', link);
     return null;
   }
+
+  console.log('Fetching media from link:', link);
 
   try {
     const response = await fetch('/api/fetch-media', {
@@ -514,11 +517,20 @@ const fetchMediaFromLink = async (link) => {
     });
 
     const data = await response.json();
+    console.log('Fetch media response:', data);
+
     if (data.success && data.files && data.files.length > 0) {
+      console.log(`Successfully fetched ${data.files.length} files`);
       return data.files;
+    } else {
+      console.error('Fetch media failed:', data.error || 'No files returned');
+      if (data.error) {
+        alert(`Could not fetch media: ${data.error}`);
+      }
     }
   } catch (err) {
     console.error('Failed to fetch media:', err);
+    alert(`Error fetching media: ${err.message}`);
   }
 
   return null;
