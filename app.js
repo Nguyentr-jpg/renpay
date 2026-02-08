@@ -546,9 +546,8 @@ const createOrder = async () => {
           dbId: data.order.id,
         });
       } else {
-        const errorMsg = data.hint || data.details || data.error || "Unknown error";
         console.error("API error:", data);
-        alert(`Database error: ${errorMsg}\n\nOrder saved locally only.`);
+        alert("Could not save to database. Order saved locally and will sync when the connection is restored.");
         // Fallback to local-only order
         newOrders.push({
           id: `ORD-${Math.floor(Math.random() * 9000 + 1000)}`,
@@ -564,7 +563,7 @@ const createOrder = async () => {
       }
     } catch (err) {
       console.error("Failed to save order to database:", err);
-      alert(`Failed to save to database: ${err.message}\n\nOrder saved locally only.`);
+      alert("Could not connect to server. Order saved locally and will sync when the connection is restored.");
       // Fallback to local-only order
       newOrders.push({
         id: `ORD-${Math.floor(Math.random() * 9000 + 1000)}`,

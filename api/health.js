@@ -1,6 +1,19 @@
 const { PrismaClient } = require("@prisma/client");
 
-const prisma = new PrismaClient();
+let prisma;
+
+function getPrisma() {
+  if (!prisma) {
+    const dbUrl = process.env.DATABASE_URL || "";
+    if (!dbUrl.startsWith("postgresql://") && !dbUrl.startsWith("postgres://")) {
+      throw new Error(
+        "DATABASE_URL is not configured or invalid."
+      );
+    }
+    prisma = new PrismaClient();
+  }
+  return prisma;
+}
 
 module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -21,12 +34,13 @@ module.exports = async function handler(req, res) {
 
   // Check database connection
   try {
-    const result = await prisma.$queryRaw`SELECT 1 as connected`;
+    const db = getPrisma();
+    const result = await db.$queryRaw`SELECT 1 as connected`;
     checks.database = { status: "connected", result };
 
     // Check if tables exist
-    const userCount = await prisma.user.count();
-    const orderCount = await prisma.order.count();
+    const userCount = await db.user.count();
+    const orderCount = await db.order.count();
     checks.database.tables = {
       users: userCount,
       orders: orderCount,

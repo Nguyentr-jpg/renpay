@@ -1,6 +1,36 @@
 const { PrismaClient } = require("@prisma/client");
 
-const prisma = new PrismaClient();
+let prisma;
+
+function getPrisma() {
+  if (!prisma) {
+    const dbUrl = process.env.DATABASE_URL || "";
+    if (!dbUrl.startsWith("postgresql://") && !dbUrl.startsWith("postgres://")) {
+      throw new Error(
+        "DATABASE_URL is not configured. Please set it in your Vercel environment variables."
+      );
+    }
+    prisma = new PrismaClient();
+  }
+  return prisma;
+}
+
+function getErrorHint(error) {
+  const msg = error.message || "";
+  if (msg.includes("Error validating datasource") || msg.includes("DATABASE_URL")) {
+    return "DATABASE_URL is missing or invalid. Set it in Vercel → Settings → Environment Variables.";
+  }
+  if (error.code === "P1001") {
+    return "Cannot reach database. Check DATABASE_URL env var on Vercel.";
+  }
+  if (error.code === "P2021") {
+    return "Table does not exist. Run 'npx prisma db push' against your database.";
+  }
+  if (error.code === "P1000") {
+    return "Authentication failed. Check your DATABASE_URL credentials.";
+  }
+  return "Database connection failed. Check your Vercel environment variables.";
+}
 
 module.exports = async function handler(req, res) {
   // CORS headers
@@ -13,6 +43,8 @@ module.exports = async function handler(req, res) {
   }
 
   try {
+    getPrisma();
+
     if (req.method === "GET") {
       return await handleGet(req, res);
     }
@@ -28,23 +60,17 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   } catch (error) {
     console.error("API Error:", error);
+    const hint = getErrorHint(error);
     return res.status(500).json({
-      error: "Internal server error",
-      details: error.message,
+      error: "Database connection error",
+      hint,
       code: error.code,
-      hint: error.code === "P1001"
-        ? "Cannot reach database. Check DATABASE_URL env var on Vercel."
-        : error.code === "P2021"
-        ? "Table does not exist. Run 'npx prisma db push' against your Supabase database."
-        : error.code === "P1000"
-        ? "Authentication failed. Check your DATABASE_URL credentials."
-        : undefined,
     });
   }
 };
 
 async function handleGet(req, res) {
-  const orders = await prisma.order.findMany({
+  const orders = await getPrisma().order.findMany({
     include: { items: true },
     orderBy: { createdAt: "desc" },
   });
@@ -66,9 +92,9 @@ async function handlePost(req, res) {
   }
 
   // Find or create user by email
-  let user = await prisma.user.findUnique({ where: { email: userEmail } });
+  let user = await getPrisma().user.findUnique({ where: { email: userEmail } });
   if (!user) {
-    user = await prisma.user.create({
+    user = await getPrisma().user.create({
       data: {
         email: userEmail,
         name: userEmail.split("@")[0],
@@ -80,7 +106,7 @@ async function handlePost(req, res) {
   const orderNumber = `ORD-${Date.now()}`;
 
   // Create order with items in a transaction
-  const order = await prisma.order.create({
+  const order = await getPrisma().order.create({
     data: {
       orderNumber,
       orderName,
@@ -114,7 +140,7 @@ async function handlePut(req, res) {
     return res.status(400).json({ error: "Missing required field: orderNumber" });
   }
 
-  const order = await prisma.order.findUnique({ where: { orderNumber } });
+  const order = await getPrisma().order.findUnique({ where: { orderNumber } });
   if (!order) {
     return res.status(404).json({ error: "Order not found" });
   }
@@ -123,7 +149,7 @@ async function handlePut(req, res) {
   if (status) updateData.status = status.toUpperCase();
   if (paidAt) updateData.paidAt = new Date(paidAt);
 
-  const updated = await prisma.order.update({
+  const updated = await getPrisma().order.update({
     where: { orderNumber },
     data: updateData,
     include: { items: true },
@@ -139,12 +165,12 @@ async function handleDelete(req, res) {
     return res.status(400).json({ error: "Missing required field: orderNumber" });
   }
 
-  const order = await prisma.order.findUnique({ where: { orderNumber } });
+  const order = await getPrisma().order.findUnique({ where: { orderNumber } });
   if (!order) {
     return res.status(404).json({ error: "Order not found" });
   }
 
-  await prisma.order.delete({ where: { orderNumber } });
+  await getPrisma().order.delete({ where: { orderNumber } });
 
   return res.status(200).json({ success: true, deleted: orderNumber });
 }
