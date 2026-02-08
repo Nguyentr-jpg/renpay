@@ -28,17 +28,20 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   } catch (error) {
     console.error("API Error:", error);
-    return res.status(500).json({
-      error: "Internal server error",
-      details: error.message,
-      code: error.code,
-      hint: error.code === "P1001"
-        ? "Cannot reach database. Check DATABASE_URL env var on Vercel."
+
+    // User-friendly messages (don't expose raw DB details)
+    const userMessage =
+      error.code === "P1001"
+        ? "Không kết nối được database. Vui lòng thử lại sau."
         : error.code === "P2021"
-        ? "Table does not exist. Run 'npx prisma db push' against your Supabase database."
+        ? "Database chưa được setup. Liên hệ admin."
         : error.code === "P1000"
-        ? "Authentication failed. Check your DATABASE_URL credentials."
-        : undefined,
+        ? "Lỗi xác thực database. Liên hệ admin."
+        : "Lỗi hệ thống. Vui lòng thử lại sau.";
+
+    return res.status(500).json({
+      error: userMessage,
+      code: error.code,
     });
   }
 };

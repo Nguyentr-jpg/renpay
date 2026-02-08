@@ -12,6 +12,18 @@ const state = {
 
 const el = (id) => document.getElementById(id);
 
+const showToast = (message, type = "error", duration = 5000) => {
+  const container = el("toastContainer");
+  const toast = document.createElement("div");
+  toast.className = `toast ${type}`;
+  toast.textContent = message;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.classList.add("fadeOut");
+    setTimeout(() => toast.remove(), 300);
+  }, duration);
+};
+
 const seedData = () => ({
   orders: [
     {
@@ -546,9 +558,9 @@ const createOrder = async () => {
           dbId: data.order.id,
         });
       } else {
-        const errorMsg = data.hint || data.details || data.error || "Unknown error";
+        const errorMsg = data.error || "Lỗi không xác định";
         console.error("API error:", data);
-        alert(`Database error: ${errorMsg}\n\nOrder saved locally only.`);
+        showToast(`${errorMsg} — Đơn hàng đã lưu tạm trên máy.`, "warning");
         // Fallback to local-only order
         newOrders.push({
           id: `ORD-${Math.floor(Math.random() * 9000 + 1000)}`,
@@ -564,7 +576,7 @@ const createOrder = async () => {
       }
     } catch (err) {
       console.error("Failed to save order to database:", err);
-      alert(`Failed to save to database: ${err.message}\n\nOrder saved locally only.`);
+      showToast("Không kết nối được server. Đơn hàng đã lưu tạm trên máy.", "warning");
       // Fallback to local-only order
       newOrders.push({
         id: `ORD-${Math.floor(Math.random() * 9000 + 1000)}`,
