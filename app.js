@@ -345,25 +345,52 @@ const openGallery = (orderId) => {
 
   const grid = el("galleryGrid");
   grid.innerHTML = "";
-  const links = order.items
-    ? order.items.flatMap((item) => parseLinks(item.link).map(normalizeImageUrl))
-    : [];
-  const previewCount = links.length
-    ? links.length
-    : Math.min(order.totalCount, 16);
 
-  for (let i = 0; i < previewCount; i += 1) {
-    const item = document.createElement("div");
-    item.className = "gallery-item";
-    if (links[i] && (isImageUrl(links[i]) || isPreviewHost(links[i]))) {
-      item.style.backgroundImage = `url('${links[i]}')`;
-      item.dataset.src = links[i];
-    } else if (links[i]) {
-      item.dataset.src = "";
-      item.classList.add("link-only");
+  // Use mediaFiles if available (from Dropbox/Drive), otherwise fallback to links
+  const mediaFiles = order.mediaFiles || [];
+
+  if (mediaFiles.length > 0) {
+    // Display fetched media files
+    mediaFiles.forEach((file) => {
+      const item = document.createElement("div");
+      item.className = "gallery-item";
+
+      if (file.thumbnailUrl) {
+        item.style.backgroundImage = `url('${file.thumbnailUrl}')`;
+        item.dataset.src = file.thumbnailUrl;
+        item.dataset.fileName = file.name;
+      }
+
+      // Add paid/unpaid overlay
+      if (order.status === 'unpaid') {
+        item.classList.add('watermarked');
+      }
+
+      item.addEventListener("click", () => openLightbox(item.dataset.src));
+      grid.appendChild(item);
+    });
+  } else {
+    // Fallback to old link parsing method
+    const links = order.items
+      ? order.items.flatMap((item) => parseLinks(item.link).map(normalizeImageUrl))
+      : [];
+    const previewCount = links.length
+      ? links.length
+      : Math.min(order.totalCount, 16);
+
+    for (let i = 0; i < previewCount; i += 1) {
+      const item = document.createElement("div");
+      item.className = "gallery-item";
+      if (links[i] && (isImageUrl(links[i]) || isPreviewHost(links[i]))) {
+        item.style.backgroundImage = `url('${links[i]}')`;
+        item.dataset.src = links[i];
+      } else if (links[i]) {
+        item.dataset.src = "";
+        item.classList.add("link-only");
+      }
+      item.addEventListener("click", () => openLightbox(item.dataset.src));
+      grid.appendChild(item);
     }
-    item.addEventListener("click", () => openLightbox(item.dataset.src));
-    grid.appendChild(item);
   }
 
   el("galleryModal").classList.remove("hidden");
@@ -473,6 +500,30 @@ const markPaid = async (orderIds) => {
   renderPayments();
 };
 
+// Helper function to fetch media from Dropbox/Google Drive links
+const fetchMediaFromLink = async (link) => {
+  if (!link || (!link.includes('dropbox.com') && !link.includes('drive.google.com'))) {
+    return null;
+  }
+
+  try {
+    const response = await fetch('/api/fetch-media', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: link })
+    });
+
+    const data = await response.json();
+    if (data.success && data.files && data.files.length > 0) {
+      return data.files;
+    }
+  } catch (err) {
+    console.error('Failed to fetch media:', err);
+  }
+
+  return null;
+};
+
 const createOrder = async () => {
   if (!state.subscribed) {
     el("subModal").classList.remove("hidden");
@@ -502,7 +553,7 @@ const createOrder = async () => {
   // Disable button while saving
   const btnCreate = el("btnCreate");
   btnCreate.disabled = true;
-  btnCreate.textContent = "Saving...";
+  btnCreate.textContent = "Fetching media...";
 
   const newOrders = [];
 
@@ -510,6 +561,15 @@ const createOrder = async () => {
     const displayName = ensureDatePrefix(item.type, createdAt);
     const amount = Number((item.count * (item.unitPrice || 0)).toFixed(2));
     const clientId = `CLI-${Math.floor(Math.random() * 90000 + 10000)}`;
+
+    // Fetch media files if link is provided
+    let mediaFiles = null;
+    if (item.link) {
+      btnCreate.textContent = `Fetching media from ${item.link.includes('dropbox') ? 'Dropbox' : 'Google Drive'}...`;
+      mediaFiles = await fetchMediaFromLink(item.link);
+    }
+
+    btnCreate.textContent = "Saving...";
 
     try {
       const response = await fetch("/api/orders", {
@@ -539,6 +599,7 @@ const createOrder = async () => {
             link: i.link || "",
             unitPrice: Number(i.unitPrice),
           })),
+          mediaFiles: mediaFiles || [], // Store fetched media files
           totalCount: Number(data.order.totalCount),
           totalAmount: Number(data.order.totalAmount),
           status: data.order.status.toLowerCase(),
@@ -555,6 +616,7 @@ const createOrder = async () => {
           id: `ORD-${Math.floor(Math.random() * 9000 + 1000)}`,
           name: displayName,
           items: [item],
+          mediaFiles: mediaFiles || [],
           totalCount: item.count,
           totalAmount: amount,
           status: "unpaid",
@@ -571,6 +633,7 @@ const createOrder = async () => {
         id: `ORD-${Math.floor(Math.random() * 9000 + 1000)}`,
         name: displayName,
         items: [item],
+        mediaFiles: mediaFiles || [],
         totalCount: item.count,
         totalAmount: amount,
         status: "unpaid",
@@ -864,23 +927,29 @@ const fetchOrdersFromDB = async () => {
     const response = await fetch(url);
     const data = await response.json();
     if (data.success && Array.isArray(data.orders)) {
-      const dbOrders = data.orders.map((o) => ({
-        id: o.orderNumber,
-        name: o.orderName,
-        items: (o.items || []).map((i) => ({
-          type: i.type,
-          count: Number(i.count),
-          link: i.link || "",
-          unitPrice: Number(i.unitPrice),
-        })),
-        totalCount: Number(o.totalCount),
-        totalAmount: Number(o.totalAmount),
-        status: o.status.toLowerCase(),
-        createdAt: new Date(o.createdAt).toISOString().replace("T", " ").slice(0, 16),
-        clientId: o.clientId || "",
-        clientName: o.clientName || "",
-        dbId: o.id,
-      }));
+      const dbOrders = data.orders.map((o) => {
+        // Find existing order in state to preserve mediaFiles
+        const existingOrder = state.orders.find(existing => existing.id === o.orderNumber);
+
+        return {
+          id: o.orderNumber,
+          name: o.orderName,
+          items: (o.items || []).map((i) => ({
+            type: i.type,
+            count: Number(i.count),
+            link: i.link || "",
+            unitPrice: Number(i.unitPrice),
+          })),
+          mediaFiles: existingOrder?.mediaFiles || [], // Preserve mediaFiles if exists
+          totalCount: Number(o.totalCount),
+          totalAmount: Number(o.totalAmount),
+          status: o.status.toLowerCase(),
+          createdAt: new Date(o.createdAt).toISOString().replace("T", " ").slice(0, 16),
+          clientId: o.clientId || "",
+          clientName: o.clientName || "",
+          dbId: o.id,
+        };
+      });
 
       // Find local-only orders that need to be synced to DB
       const dbIds = new Set(dbOrders.map((o) => o.id));
@@ -896,23 +965,29 @@ const fetchOrdersFromDB = async () => {
         const refreshResponse = await fetch(url);
         const refreshData = await refreshResponse.json();
         if (refreshData.success && Array.isArray(refreshData.orders)) {
-          const allDbOrders = refreshData.orders.map((o) => ({
-            id: o.orderNumber,
-            name: o.orderName,
-            items: (o.items || []).map((i) => ({
-              type: i.type,
-              count: Number(i.count),
-              link: i.link || "",
-              unitPrice: Number(i.unitPrice),
-            })),
-            totalCount: Number(o.totalCount),
-            totalAmount: Number(o.totalAmount),
-            status: o.status.toLowerCase(),
-            createdAt: new Date(o.createdAt).toISOString().replace("T", " ").slice(0, 16),
-            clientId: o.clientId || "",
-            clientName: o.clientName || "",
-            dbId: o.id,
-          }));
+          const allDbOrders = refreshData.orders.map((o) => {
+            // Find existing order in state to preserve mediaFiles
+            const existingOrder = state.orders.find(existing => existing.id === o.orderNumber);
+
+            return {
+              id: o.orderNumber,
+              name: o.orderName,
+              items: (o.items || []).map((i) => ({
+                type: i.type,
+                count: Number(i.count),
+                link: i.link || "",
+                unitPrice: Number(i.unitPrice),
+              })),
+              mediaFiles: existingOrder?.mediaFiles || [], // Preserve mediaFiles if exists
+              totalCount: Number(o.totalCount),
+              totalAmount: Number(o.totalAmount),
+              status: o.status.toLowerCase(),
+              createdAt: new Date(o.createdAt).toISOString().replace("T", " ").slice(0, 16),
+              clientId: o.clientId || "",
+              clientName: o.clientName || "",
+              dbId: o.id,
+            };
+          });
           state.orders = allDbOrders;
         }
       } else {
