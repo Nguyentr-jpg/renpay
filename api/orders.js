@@ -70,7 +70,15 @@ module.exports = async function handler(req, res) {
 };
 
 async function handleGet(req, res) {
+  const userEmail = req.query.userEmail;
+
+  const where = {};
+  if (userEmail) {
+    where.user = { email: userEmail };
+  }
+
   const orders = await getPrisma().order.findMany({
+    where,
     include: { items: true },
     orderBy: { createdAt: "desc" },
   });
@@ -121,8 +129,8 @@ async function handlePost(req, res) {
             create: items.map((item) => ({
               type: item.type || "",
               count: Number(item.count || 0),
-              link: item.link || null,
               unitPrice: Number(item.unitPrice || 0),
+              subtotal: Number((item.count || 0) * (item.unitPrice || 0)),
             })),
           }
         : undefined,
