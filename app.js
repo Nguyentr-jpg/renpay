@@ -553,13 +553,16 @@ const createOrder = async () => {
   const rows = Array.from(el("lineItems").children);
   const items = rows.map((row) => {
     const inputs = row.querySelectorAll("input");
+    console.log('[DEBUG] Row inputs count:', inputs.length);
+    console.log('[DEBUG] Input values:', Array.from(inputs).map((inp, idx) => `[${idx}] ${inp.placeholder}: "${inp.value}"`));
     return {
       type: inputs[0].value.trim(),
       count: Number(inputs[1].value || 0),
-      link: inputs[2].value.trim(),
+      link: inputs[2] ? inputs[2].value.trim() : "",
       unitPrice: Number(row.dataset.unitPrice || 0),
     };
   });
+  console.log('[DEBUG] Parsed items:', JSON.stringify(items));
 
   const now = new Date();
   const createdAt = formatLocalDateTime(now);
