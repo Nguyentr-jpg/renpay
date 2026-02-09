@@ -616,7 +616,7 @@ const createOrder = async () => {
           items: (data.order.items || []).map((i) => ({
             type: i.type,
             count: Number(i.count),
-            link: i.link || "",
+            link: i.sourceLink || "",
             unitPrice: Number(i.unitPrice),
           })),
           mediaFiles: mediaFiles || [], // Store fetched media files
@@ -957,7 +957,7 @@ const fetchOrdersFromDB = async () => {
           items: (o.items || []).map((i) => ({
             type: i.type,
             count: Number(i.count),
-            link: i.link || "",
+            link: i.sourceLink || "",
             unitPrice: Number(i.unitPrice),
           })),
           mediaFiles: existingOrder?.mediaFiles || [], // Preserve mediaFiles if exists
