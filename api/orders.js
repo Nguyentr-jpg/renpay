@@ -89,8 +89,6 @@ async function handleGet(req, res) {
 async function handlePost(req, res) {
   const { orderName, totalCount, totalAmount, clientId, clientName, userEmail, items } = req.body;
 
-  console.log('[DEBUG] POST /api/orders - items received:', JSON.stringify(items));
-
   if (!orderName || totalCount == null || totalAmount == null) {
     return res.status(400).json({
       error: "Missing required fields: orderName, totalCount, totalAmount",
