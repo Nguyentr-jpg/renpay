@@ -556,7 +556,7 @@ const createOrder = async () => {
     return {
       type: inputs[0].value.trim(),
       count: Number(inputs[1].value || 0),
-      link: inputs[2].value.trim(),
+      link: inputs[2] ? inputs[2].value.trim() : "",
       unitPrice: Number(row.dataset.unitPrice || 0),
     };
   });
@@ -616,7 +616,7 @@ const createOrder = async () => {
           items: (data.order.items || []).map((i) => ({
             type: i.type,
             count: Number(i.count),
-            link: i.link || "",
+            link: i.sourceLink || "",
             unitPrice: Number(i.unitPrice),
           })),
           mediaFiles: mediaFiles || [], // Store fetched media files
@@ -957,7 +957,7 @@ const fetchOrdersFromDB = async () => {
           items: (o.items || []).map((i) => ({
             type: i.type,
             count: Number(i.count),
-            link: i.link || "",
+            link: i.sourceLink || "",
             unitPrice: Number(i.unitPrice),
           })),
           mediaFiles: existingOrder?.mediaFiles || [], // Preserve mediaFiles if exists

@@ -131,6 +131,7 @@ async function handlePost(req, res) {
               count: Number(item.count || 0),
               unitPrice: String(Number(item.unitPrice || 0).toFixed(2)),
               subtotal: String((Number(item.count || 0) * Number(item.unitPrice || 0)).toFixed(2)),
+              sourceLink: item.link || null,
             })),
           }
         : undefined,
