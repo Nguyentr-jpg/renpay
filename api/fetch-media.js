@@ -184,7 +184,7 @@ async function fetchFromDropbox(sharedLink, accessToken) {
       return ext.match(/\.(jpg|jpeg|png|gif|webp|mp4|mov|avi)$/);
     });
 
-    // Get thumbnails (small for fast grid) + temporary full-size links for lightbox
+    // Get lightweight thumbnails for grid, and use on-demand preview URLs for lightbox
     const filesWithThumbnails = [];
     const BATCH_SIZE = 5;
 
@@ -208,7 +208,7 @@ async function fetchFromDropbox(sharedLink, accessToken) {
                     },
                     format: 'jpeg',
                     // Small thumbnail for quick gallery rendering
-                    size: 'w256h256'
+                    size: 'w128h128'
                   })
                 }
               }
@@ -223,28 +223,10 @@ async function fetchFromDropbox(sharedLink, accessToken) {
               console.error('Dropbox thumbnail failed for', file.name, ':', thumbResponse.status, await thumbResponse.text());
             }
 
-            // Full-size preview for lightbox view
-            let previewUrl = null;
-            const tempLinkResponse = await fetch(
-              'https://api.dropboxapi.com/2/files/get_temporary_link',
-              {
-                method: 'POST',
-                headers: {
-                  'Authorization': `Bearer ${accessToken}`,
-                  'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                  path: filePath
-                })
-              }
-            );
-
-            if (tempLinkResponse.ok) {
-              const tempData = await tempLinkResponse.json();
-              previewUrl = tempData.link || null;
-            } else {
-              console.error('Dropbox temporary link failed for', file.name, ':', tempLinkResponse.status, await tempLinkResponse.text());
-            }
+            const previewUrl =
+              `/api/dropbox-file?mode=preview&size=w1280h960` +
+              `&link=${encodeURIComponent(finalUrl)}` +
+              `&path=${encodeURIComponent(filePath)}`;
 
             return {
               id: file.id,

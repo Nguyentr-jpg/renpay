@@ -535,6 +535,7 @@ main {
   max-height: 100%;
   display: grid;
   place-items: center;
+  z-index: 1;
 }
 
 .lightbox-content::after {
@@ -583,6 +584,7 @@ main {
   display: grid;
   place-items: center;
   cursor: pointer;
+  z-index: 4;
 }
 
 .lightbox-nav {
@@ -602,6 +604,7 @@ main {
   place-items: center;
   cursor: pointer;
   transition: background-color 0.15s ease, opacity 0.15s ease;
+  z-index: 4;
 }
 
 .lightbox-nav.prev {
@@ -632,6 +635,7 @@ main {
   padding: 0 32px;
   color: rgba(255, 255, 255, 0.85);
   font-size: 13px;
+  z-index: 4;
 }
 
 .lightbox-name {

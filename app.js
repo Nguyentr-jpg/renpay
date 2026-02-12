@@ -341,7 +341,6 @@ const isLikelyLowResUrl = (url) => {
 
 const sanitizeLightboxSrc = (url) => {
   if (!url) return "";
-  if (url.includes("/api/dropbox-file")) return "";
   return url;
 };
 
