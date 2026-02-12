@@ -517,6 +517,8 @@ const resetLightboxZoom = () => {
   el("lightboxContent").classList.remove("zoomed");
 };
 
+const LIGHTBOX_DEFAULT_LONG_SIDE = 900;
+
 const applyLightboxDefaultScale = () => {
   const lightboxContent = el("lightboxContent");
   const lightboxImg = el("lightboxImg");
@@ -530,13 +532,13 @@ const applyLightboxDefaultScale = () => {
   const maxHeight = lightboxContent.clientHeight || window.innerHeight;
 
   if (naturalWidth >= naturalHeight) {
-    const targetWidth = Math.min(naturalWidth * 2, maxWidth);
+    const targetWidth = Math.min(LIGHTBOX_DEFAULT_LONG_SIDE, maxWidth);
     lightboxImg.style.width = `${targetWidth}px`;
     lightboxImg.style.height = "auto";
     return;
   }
 
-  const targetHeight = Math.min(naturalHeight * 2, maxHeight);
+  const targetHeight = Math.min(LIGHTBOX_DEFAULT_LONG_SIDE, maxHeight);
   lightboxImg.style.height = `${targetHeight}px`;
   lightboxImg.style.width = "auto";
 };
