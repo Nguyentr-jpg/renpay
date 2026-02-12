@@ -344,41 +344,6 @@ const sanitizeLightboxSrc = (url) => {
   return url;
 };
 
-const renderOrderDetail = (order) => {
-  const detail = el("orderDetail");
-  const amount = getOrderAmount(order);
-  const itemsSummary = order.items
-    ? order.items.map((i) => `${i.type} (x${i.count})`).join(", ")
-    : `${order.totalCount} items`;
-
-  detail.innerHTML = `
-    <div class="order-detail-item">
-      <div class="detail-label">Order ID</div>
-      <div class="detail-value">${order.id}</div>
-    </div>
-    <div class="order-detail-item">
-      <div class="detail-label">Client</div>
-      <div class="detail-value">${order.clientName || order.clientId || "—"}</div>
-    </div>
-    <div class="order-detail-item">
-      <div class="detail-label">Items</div>
-      <div class="detail-value">${itemsSummary}</div>
-    </div>
-    <div class="order-detail-item">
-      <div class="detail-label">Amount</div>
-      <div class="detail-value">$${amount.toFixed(2)}</div>
-    </div>
-    <div class="order-detail-item">
-      <div class="detail-label">Status</div>
-      <div class="detail-value">${formatStatus(order.status)}</div>
-    </div>
-    <div class="order-detail-item">
-      <div class="detail-label">Created</div>
-      <div class="detail-value">${order.createdAt}</div>
-    </div>
-  `;
-};
-
 const renderGalleryGrid = (order) => {
   const grid = el("galleryGrid");
   grid.innerHTML = "";
@@ -454,14 +419,39 @@ const renderGalleryGrid = (order) => {
   state.lightbox.items = lightboxItems;
 };
 
+const getGalleryOrderSequence = () => {
+  const filtered = getFilteredOrders();
+  if (filtered.some((order) => order.id === state.activeOrderId)) return filtered;
+  return state.orders;
+};
+
+const updateGalleryOrderNav = () => {
+  const prevBtn = el("btnPrevOrder");
+  const nextBtn = el("btnNextOrder");
+  const orders = getGalleryOrderSequence();
+  const index = orders.findIndex((order) => order.id === state.activeOrderId);
+  const noActive = index < 0 || orders.length <= 1;
+  prevBtn.disabled = noActive || index === 0;
+  nextBtn.disabled = noActive || index === orders.length - 1;
+};
+
+const stepGalleryOrder = async (delta) => {
+  const orders = getGalleryOrderSequence();
+  const index = orders.findIndex((order) => order.id === state.activeOrderId);
+  if (index < 0) return;
+  const nextIndex = index + delta;
+  if (nextIndex < 0 || nextIndex >= orders.length) return;
+  await openGallery(orders[nextIndex].id);
+};
+
 const openGallery = async (orderId) => {
   const order = state.orders.find((o) => o.id === orderId);
   if (!order) return;
 
   state.activeOrderId = orderId;
   el("galleryTitle").textContent = order.name;
-  renderOrderDetail(order);
   el("galleryModal").classList.remove("hidden");
+  updateGalleryOrderNav();
 
   const links = order.items
     ? order.items
@@ -503,6 +493,7 @@ const openGallery = async (orderId) => {
 const closeGallery = () => {
   el("galleryModal").classList.add("hidden");
   state.activeOrderId = null;
+  updateGalleryOrderNav();
 };
 
 const updateLightboxNav = () => {
@@ -955,6 +946,8 @@ const setupEvents = () => {
   });
 
   el("btnCloseGallery").addEventListener("click", closeGallery);
+  el("btnPrevOrder").addEventListener("click", () => stepGalleryOrder(-1));
+  el("btnNextOrder").addEventListener("click", () => stepGalleryOrder(1));
 
   el("btnDeleteOrder").addEventListener("click", async () => {
     if (!state.activeOrderId) return;
