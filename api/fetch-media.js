@@ -184,7 +184,7 @@ async function fetchFromDropbox(sharedLink, accessToken) {
       return ext.match(/\.(jpg|jpeg|png|gif|webp|mp4|mov|avi)$/);
     });
 
-    // Get thumbnails in batches to avoid timeout
+    // Get thumbnails (small for fast grid) + temporary full-size links for lightbox
     const filesWithThumbnails = [];
     const BATCH_SIZE = 5;
 
@@ -194,8 +194,7 @@ async function fetchFromDropbox(sharedLink, accessToken) {
         batch.map(async (file) => {
           try {
             const filePath = file.path_lower || file.path_display || file.id;
-            const proxyUrl = `/api/dropbox-file?link=${encodeURIComponent(finalUrl)}&path=${encodeURIComponent(filePath)}`;
-            // Use file ID directly (works since token owner has access)
+
             const thumbResponse = await fetch(
               'https://content.dropboxapi.com/2/files/get_thumbnail_v2',
               {
@@ -208,20 +207,43 @@ async function fetchFromDropbox(sharedLink, accessToken) {
                       path: filePath
                     },
                     format: 'jpeg',
-                    size: 'w2048h1536'
+                    // Small thumbnail for quick gallery rendering
+                    size: 'w256h256'
                   })
                 }
               }
             );
 
             let thumbnailUrl = null;
-            let previewUrl = proxyUrl;
             if (thumbResponse.ok) {
               const arrayBuffer = await thumbResponse.arrayBuffer();
               const base64 = Buffer.from(arrayBuffer).toString('base64');
               thumbnailUrl = `data:image/jpeg;base64,${base64}`;
             } else {
               console.error('Dropbox thumbnail failed for', file.name, ':', thumbResponse.status, await thumbResponse.text());
+            }
+
+            // Full-size preview for lightbox view
+            let previewUrl = null;
+            const tempLinkResponse = await fetch(
+              'https://api.dropboxapi.com/2/files/get_temporary_link',
+              {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${accessToken}`,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  path: filePath
+                })
+              }
+            );
+
+            if (tempLinkResponse.ok) {
+              const tempData = await tempLinkResponse.json();
+              previewUrl = tempData.link || null;
+            } else {
+              console.error('Dropbox temporary link failed for', file.name, ':', tempLinkResponse.status, await tempLinkResponse.text());
             }
 
             return {

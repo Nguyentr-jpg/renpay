@@ -335,6 +335,7 @@ const isPreviewHost = (url) =>
 const isLikelyLowResUrl = (url) => {
   if (!url) return true;
   if (url.startsWith("data:image/")) return true;
+  if (url.includes("/api/dropbox-file")) return true;
   return /(thumbnail|get_thumbnail|=s\d{2,4})(?:[?&]|$)/i.test(url);
 };
 
