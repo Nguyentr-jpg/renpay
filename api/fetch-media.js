@@ -225,7 +225,7 @@ async function fetchFromDropbox(sharedLink, accessToken) {
             }
 
             const previewUrl =
-              `/api/dropbox-file?mode=preview&size=w1280h960` +
+              `/api/dropbox-file?mode=preview&size=w2048h1536` +
               `&link=${encodeURIComponent(finalUrl)}` +
               `&path=${encodeURIComponent(filePath)}`;
 

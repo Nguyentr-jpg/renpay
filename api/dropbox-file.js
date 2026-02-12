@@ -51,7 +51,7 @@ module.exports = async function handler(req, res) {
     const link = req.query.link;
     const path = req.query.path;
     const mode = (req.query.mode || 'preview').toLowerCase();
-    const size = req.query.size || 'w1280h960';
+    const size = req.query.size || 'w2048h1536';
 
     if (!link || !path) {
       return res.status(400).json({ error: 'Missing required query params: link, path' });
