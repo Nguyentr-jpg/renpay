@@ -10,7 +10,12 @@ const state = {
   leafBalance: 0,
   leafCurrency: "USD",
   paypalClientId: "",
+  paypalPlans: {
+    monthly: "",
+    annual: "",
+  },
   paypalSdkLoaded: false,
+  paypalSubSdkLoaded: false,
   topupAmount: 20,
   selectedOrders: new Set(),
   activeOrderId: null,
@@ -24,6 +29,7 @@ const state = {
 
 const el = (id) => document.getElementById(id);
 let paypalSdkPromise = null;
+let paypalSubSdkPromise = null;
 
 const getFileNameFromUrl = (url) => {
   if (!url) return "";
@@ -715,7 +721,10 @@ const fetchSubscriptionStatus = async () => {
   try {
     const response = await fetch(`/api/subscription?email=${encodeURIComponent(email)}`);
     const data = await response.json();
-    if (!data.success) return;
+    if (!response.ok || !data.success) {
+      console.error("Subscription API error:", data);
+      return;
+    }
     state.subscribed = Boolean(data.subscription);
     saveState();
   } catch (err) {
@@ -725,7 +734,10 @@ const fetchSubscriptionStatus = async () => {
 
 const fetchPayPalConfig = async () => {
   if (state.paypalClientId) {
-    return state.paypalClientId;
+    return {
+      clientId: state.paypalClientId,
+      plans: state.paypalPlans,
+    };
   }
 
   const response = await fetch("/api/paypal");
@@ -735,7 +747,14 @@ const fetchPayPalConfig = async () => {
   }
 
   state.paypalClientId = data.clientId;
-  return state.paypalClientId;
+  state.paypalPlans = {
+    monthly: (data.plans && data.plans.monthly) || "",
+    annual: (data.plans && data.plans.annual) || "",
+  };
+  return {
+    clientId: state.paypalClientId,
+    plans: state.paypalPlans,
+  };
 };
 
 const ensurePayPalSdkLoaded = async () => {
@@ -746,10 +765,10 @@ const ensurePayPalSdkLoaded = async () => {
 
   if (!paypalSdkPromise) {
     paypalSdkPromise = (async () => {
-      const clientId = await fetchPayPalConfig();
+      const config = await fetchPayPalConfig();
       const src =
         "https://www.paypal.com/sdk/js" +
-        `?client-id=${encodeURIComponent(clientId)}` +
+        `?client-id=${encodeURIComponent(config.clientId)}` +
         "&currency=USD&intent=capture&components=buttons";
 
       await new Promise((resolve, reject) => {
@@ -772,8 +791,155 @@ const ensurePayPalSdkLoaded = async () => {
   state.paypalSdkLoaded = !!(window.paypal && typeof window.paypal.Buttons === "function");
 };
 
+const ensurePayPalSubscriptionSdkLoaded = async () => {
+  if (window.paypalSub && typeof window.paypalSub.Buttons === "function") {
+    state.paypalSubSdkLoaded = true;
+    return;
+  }
+
+  if (!paypalSubSdkPromise) {
+    paypalSubSdkPromise = (async () => {
+      const config = await fetchPayPalConfig();
+      const src =
+        "https://www.paypal.com/sdk/js" +
+        `?client-id=${encodeURIComponent(config.clientId)}` +
+        "&currency=USD&vault=true&intent=subscription&components=buttons";
+
+      await new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = src;
+        script.async = true;
+        script.setAttribute("data-namespace", "paypalSub");
+        script.onload = () => resolve();
+        script.onerror = () => reject(new Error("Failed to load PayPal Subscription SDK."));
+        document.head.appendChild(script);
+      });
+    })();
+  }
+
+  try {
+    await paypalSubSdkPromise;
+  } catch (err) {
+    paypalSubSdkPromise = null;
+    throw err;
+  }
+
+  state.paypalSubSdkLoaded = !!(window.paypalSub && typeof window.paypalSub.Buttons === "function");
+};
+
 const closeTopupModal = () => {
   el("topupModal").classList.add("hidden");
+};
+
+const closeSubscriptionModal = () => {
+  el("subModal").classList.add("hidden");
+};
+
+const getSelectedPlan = () => {
+  const activePlan = document.querySelector(".plan-card.active");
+  return activePlan ? activePlan.dataset.plan : "monthly";
+};
+
+const renderPayPalSubscriptionButton = async () => {
+  const container = el("paypalSubContainer");
+  const hint = el("paypalSubHint");
+  const email = state.user && state.user.email;
+  const plan = getSelectedPlan();
+
+  if (!container || !hint) return;
+
+  if (!email) {
+    container.innerHTML = "";
+    hint.textContent = "Please sign in before starting a subscription.";
+    return;
+  }
+
+  hint.textContent = "Loading PayPal subscription checkout...";
+
+  try {
+    await fetchPayPalConfig();
+  } catch (err) {
+    container.innerHTML = "";
+    hint.textContent = err.message || "PayPal configuration is missing.";
+    return;
+  }
+
+  const planId = state.paypalPlans[plan];
+  if (!planId) {
+    container.innerHTML = "";
+    hint.textContent =
+      `PayPal plan ID for '${plan}' is missing. Set PAYPAL_PLAN_ID_${plan.toUpperCase()} on server.`;
+    return;
+  }
+
+  try {
+    await ensurePayPalSubscriptionSdkLoaded();
+  } catch (err) {
+    container.innerHTML = "";
+    hint.textContent = err.message || "Could not load PayPal subscription checkout.";
+    return;
+  }
+
+  if (!window.paypalSub || typeof window.paypalSub.Buttons !== "function") {
+    container.innerHTML = "";
+    hint.textContent = "PayPal subscription checkout is unavailable in this browser.";
+    return;
+  }
+
+  container.innerHTML = "";
+  hint.textContent = `Plan: ${plan} (${planId}). Complete PayPal approval to activate.`;
+
+  window.paypalSub
+    .Buttons({
+      style: {
+        layout: "vertical",
+        shape: "rect",
+        label: "subscribe",
+      },
+      createSubscription: (data, actions) =>
+        actions.subscription.create({
+          plan_id: planId,
+        }),
+      onApprove: async (data) => {
+        const response = await fetch("/api/subscription", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "activate_paypal",
+            email,
+            plan,
+            paypalSubscriptionId: data.subscriptionID,
+          }),
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+          throw new Error(result.error || result.hint || "Could not activate subscription.");
+        }
+
+        state.subscribed = true;
+        saveState();
+        closeSubscriptionModal();
+        await fetchSubscriptionStatus();
+        alert("Subscription activated via PayPal.");
+      },
+      onCancel: () => {
+        hint.textContent = "Subscription checkout was cancelled.";
+      },
+      onError: (err) => {
+        console.error("PayPal subscription error:", err);
+        alert(err && err.message ? err.message : "Subscription failed.");
+      },
+    })
+    .render("#paypalSubContainer")
+    .catch((err) => {
+      console.error("PayPal subscription render error:", err);
+      hint.textContent = "Could not render PayPal subscription button.";
+    });
+};
+
+const openSubscriptionModal = async () => {
+  el("subModal").classList.remove("hidden");
+  await renderPayPalSubscriptionButton();
 };
 
 const renderPayPalTopupButton = async () => {
@@ -979,7 +1145,12 @@ const fetchMediaFromLink = async (link) => {
 
 const createOrder = async () => {
   if (!state.subscribed) {
-    el("subModal").classList.remove("hidden");
+    try {
+      await openSubscriptionModal();
+    } catch (err) {
+      console.error("Could not open subscription modal:", err);
+      alert("Could not initialize PayPal subscription checkout.");
+    }
     return;
   }
 
@@ -1309,54 +1480,21 @@ const setupEvents = () => {
   });
 
   document.querySelectorAll(".plan-card").forEach((card) => {
-    card.addEventListener("click", () => {
+    card.addEventListener("click", async () => {
       document.querySelectorAll(".plan-card").forEach((c) => c.classList.remove("active"));
       card.classList.add("active");
+      if (!el("subModal").classList.contains("hidden")) {
+        await renderPayPalSubscriptionButton();
+      }
     });
   });
 
   el("btnCloseSub").addEventListener("click", () => {
-    el("subModal").classList.add("hidden");
+    closeSubscriptionModal();
   });
 
   el("btnStartSub").addEventListener("click", async () => {
-    const activePlan = document.querySelector(".plan-card.active");
-    const plan = activePlan ? activePlan.dataset.plan : "monthly";
-    const email = state.user && state.user.email;
-
-    if (!email) {
-      alert("Please sign in first.");
-      return;
-    }
-
-    const btn = el("btnStartSub");
-    btn.disabled = true;
-    btn.textContent = "Starting...";
-
-    try {
-      const response = await fetch("/api/subscription", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, plan }),
-      });
-      const data = await response.json();
-
-      if (!data.success) {
-        alert(data.error || "Could not start subscription.");
-        return;
-      }
-
-      state.subscribed = true;
-      saveState();
-      el("subModal").classList.add("hidden");
-      alert("Subscription activated. You can now create orders.");
-    } catch (err) {
-      console.error("Subscription error:", err);
-      alert("Could not connect to subscription service.");
-    } finally {
-      btn.disabled = false;
-      btn.textContent = "Start subscription";
-    }
+    await renderPayPalSubscriptionButton();
   });
 
   document.querySelectorAll(".chip").forEach((chip) => {

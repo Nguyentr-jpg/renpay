@@ -19,6 +19,13 @@ function getPayPalClientId() {
   return process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || process.env.PAYPAL_CLIENT_ID || "";
 }
 
+function getPayPalPlanIds() {
+  return {
+    monthly: process.env.PAYPAL_PLAN_ID_MONTHLY || "",
+    annual: process.env.PAYPAL_PLAN_ID_ANNUAL || "",
+  };
+}
+
 function getPayPalBaseUrl() {
   return process.env.PAYPAL_ENV === "live"
     ? "https://api-m.paypal.com"
@@ -182,6 +189,7 @@ module.exports = async function handler(req, res) {
         clientId,
         env: process.env.PAYPAL_ENV || "sandbox",
         currency: "USD",
+        plans: getPayPalPlanIds(),
       });
     }
 
