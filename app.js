@@ -517,7 +517,7 @@ const resetLightboxZoom = () => {
   el("lightboxContent").classList.remove("zoomed");
 };
 
-const LIGHTBOX_DEFAULT_LONG_SIDE = 900;
+const LIGHTBOX_DEFAULT_LONG_SIDE = 1000;
 
 const applyLightboxDefaultScale = () => {
   const lightboxContent = el("lightboxContent");
