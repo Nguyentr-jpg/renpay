@@ -1,4 +1,5 @@
 const { PrismaClient } = require("@prisma/client");
+const { sendOrderPaidEmail } = require("./_mail");
 
 let prisma;
 
@@ -350,6 +351,27 @@ async function handlePayOrders(req, res) {
     });
   }
 
+  let emailStatus = { sent: false, skipped: true, reason: "not attempted" };
+  if (Array.isArray(result.paidOrders) && result.paidOrders.length > 0 && toMoney(result.totalAmount) > 0) {
+    try {
+      emailStatus = await sendOrderPaidEmail({
+        toEmail: user.email,
+        toName: user.name,
+        totalAmount: result.totalAmount,
+        leafBalance: result.walletBalance,
+        paidOrders: result.paidOrders,
+        appUrl: process.env.NEXT_PUBLIC_APP_URL || "https://renpay.vercel.app",
+      });
+    } catch (emailError) {
+      console.error("Order paid email send failed:", emailError);
+      emailStatus = {
+        sent: false,
+        skipped: false,
+        reason: emailError.message || "email_send_failed",
+      };
+    }
+  }
+
   return res.status(200).json({
     success: true,
     totalAmount: toMoney(result.totalAmount),
@@ -358,5 +380,6 @@ async function handlePayOrders(req, res) {
       leafBalance: toMoney(result.walletBalance),
     },
     message: result.message || null,
+    email: emailStatus,
   });
 }

@@ -5,7 +5,8 @@
     "postinstall": "prisma generate"
   },
   "dependencies": {
-    "@prisma/client": "^6.3.1"
+    "@prisma/client": "^6.3.1",
+    "nodemailer": "^6.10.1"
   },
   "devDependencies": {
     "prisma": "^6.3.1"

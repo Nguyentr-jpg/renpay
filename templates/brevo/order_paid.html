@@ -1,0 +1,112 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Renpay Payment Confirmed</title>
+    <style>
+      @media screen and (max-width: 600px) {
+        .rp-wrap {
+          padding: 16px !important;
+        }
+        .rp-card {
+          border-radius: 12px !important;
+        }
+        .rp-px {
+          padding-left: 16px !important;
+          padding-right: 16px !important;
+        }
+        .rp-title {
+          font-size: 38px !important;
+        }
+        .rp-value {
+          font-size: 20px !important;
+        }
+      }
+    </style>
+  </head>
+  <body style="margin:0;background:#f2efe9;font-family:Arial,sans-serif;color:#1f2937;">
+    <table class="rp-wrap" width="100%" cellpadding="0" cellspacing="0" style="padding:28px 12px;">
+      <tr>
+        <td align="center">
+          <table class="rp-card" width="100%" cellpadding="0" cellspacing="0" style="max-width:640px;background:#ffffff;border:1px solid #e8dcc9;border-radius:16px;overflow:hidden;">
+            <tr>
+              <td class="rp-px" style="background:#1f1a16;padding:10px 24px;">
+                <span style="display:inline-block;padding:6px 10px;background:#f2b94b;color:#2a1f12;font-size:12px;font-weight:700;border-radius:999px;">PAYMENT CONFIRMED</span>
+              </td>
+            </tr>
+            <tr>
+              <td class="rp-px" style="padding:24px;background:#f5e7cf;border-bottom:1px solid #e8dcc9;">
+                <table width="100%" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td valign="top" style="padding-right:12px;">
+                      <div class="rp-title" style="font-size:44px;line-height:1.02;font-weight:800;color:#2d2115;letter-spacing:-0.03em;">Renpay</div>
+                      <div style="margin-top:8px;font-size:16px;color:#5f4a33;">Order payment receipt</div>
+                    </td>
+                    <td align="right" valign="top" style="width:120px;">
+                      <div style="font-size:12px;color:#6f5a43;">Status</div>
+                      <div style="margin-top:4px;font-size:14px;font-weight:700;color:#2f7a3f;">Completed</div>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td class="rp-px" style="padding:24px 24px 12px;">
+                <p style="margin:0;font-size:30px;line-height:1.25;color:#171717;word-break:break-word;overflow-wrap:anywhere;">
+                  Hi <strong>{{params.customer_name}}</strong>, your payment was successful.
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td class="rp-px" style="padding:0 24px 20px;">
+                <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #eddcc3;border-radius:12px;overflow:hidden;background:#fffaf2;">
+                  <tr>
+                    <td style="padding:12px 14px;border-bottom:1px solid #eddcc3;font-size:13px;color:#7a664f;">Orders paid</td>
+                    <td class="rp-value" align="right" style="padding:12px 14px;border-bottom:1px solid #eddcc3;font-size:24px;font-weight:800;color:#1f2937;word-break:break-word;overflow-wrap:anywhere;">
+                      {{params.paid_order_count}}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:12px 14px;border-bottom:1px solid #eddcc3;font-size:13px;color:#7a664f;">Total paid</td>
+                    <td class="rp-value" align="right" style="padding:12px 14px;border-bottom:1px solid #eddcc3;font-size:24px;font-weight:800;color:#1f2937;word-break:break-word;overflow-wrap:anywhere;">
+                      ${{params.total_amount}} USD
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:12px 14px;font-size:13px;color:#7a664f;">Leaf balance after payment</td>
+                    <td class="rp-value" align="right" style="padding:12px 14px;font-size:24px;font-weight:800;color:#1f2937;word-break:break-word;overflow-wrap:anywhere;">
+                      {{params.leaf_balance}} Leaf
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+            <tr>
+              <td class="rp-px" style="padding:0 24px 8px;">
+                <div style="font-size:14px;font-weight:700;color:#3f2f1f;">Paid order details</div>
+              </td>
+            </tr>
+            <tr>
+              <td class="rp-px" style="padding:0 24px 24px;">
+                <pre style="margin:0;padding:14px;background:#fbf6ee;border:1px solid #eddcc3;border-radius:10px;white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere;line-height:1.6;font-family:Consolas,Monaco,monospace;font-size:12px;color:#3a3128;">{{params.orders_summary}}</pre>
+              </td>
+            </tr>
+            <tr>
+              <td class="rp-px" align="center" style="padding:0 24px 26px;">
+                <a href="{{params.app_url}}" style="display:inline-block;padding:12px 22px;background:#d97706;color:#ffffff;text-decoration:none;border-radius:10px;font-weight:700;font-size:15px;">Open Renpay</a>
+              </td>
+            </tr>
+            <tr>
+              <td class="rp-px" style="padding:16px 24px;background:#f8f3ea;border-top:1px solid #e8dcc9;">
+                <div style="font-size:12px;line-height:1.6;color:#7a664f;">
+                  Need help? Reply to this email and our team will assist.
+                </div>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

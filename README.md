@@ -72,9 +72,24 @@ Copy `.env.example` to `.env.local` for local development. For Vercel, add these
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Stripe publishable key |
 | `STRIPE_SECRET_KEY` | Stripe secret key |
 | `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret |
+| `MAIL_PROVIDER` | `smtp` (Google SMTP) or `brevo` |
+| `SMTP_HOST` | SMTP host (`smtp.gmail.com`) |
+| `SMTP_PORT` | SMTP port (`587` for TLS) |
+| `SMTP_SECURE` | `true` for SSL (465), otherwise `false` |
+| `SMTP_USER` | SMTP username (Google Workspace email) |
+| `SMTP_PASS` | SMTP password (Google app password) |
+| `SMTP_FROM_EMAIL` | Sender email address |
+| `SMTP_FROM_NAME` | Sender display name |
+| `BREVO_API_KEY` | Brevo API key for transactional email |
+| `BREVO_SENDER_EMAIL` | Verified sender email in Brevo |
+| `BREVO_SENDER_NAME` | Sender display name (e.g. `Renpay`) |
+| `BREVO_TEMPLATE_ORDER_PAID` | Brevo template ID for order payment confirmation |
+| `BREVO_SANDBOX_MODE` | `true` to test send without real delivery |
 | `NEXTAUTH_URL` | App URL (e.g. `https://renpay.vercel.app`) |
 | `NEXTAUTH_SECRET` | Auth secret (`openssl rand -base64 32`) |
 | `NEXT_PUBLIC_APP_URL` | Public app URL |
+
+For Google SMTP, enable 2-Step Verification and generate an App Password for `SMTP_PASS`.
 
 ### Post-Deployment Checklist
 
