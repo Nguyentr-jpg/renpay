@@ -1,6 +1,6 @@
 const STORAGE_KEY = "renpay-data-v1";
 
-const SESSION_KEY = "renpay-session";
+const SESSION_KEY = "renpay-session-v2";
 
 const state = {
   user: null, // { id, email, name, role }
