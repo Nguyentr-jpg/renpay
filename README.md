@@ -89,6 +89,8 @@ Copy `.env.example` to `.env.local` for local development. For Vercel, add these
 | `NEXTAUTH_SECRET` | Auth secret (`openssl rand -base64 32`) |
 | `AUTH_AUTO_SIGNUP` | `false` to block unknown emails from auto-creating accounts |
 | `AUTH_ALLOWED_EMAILS` | Optional CSV email allowlist for sign-in |
+| `AUTH_MAGIC_LINK_SECRET` | Secret used to sign email login links |
+| `AUTH_MAGIC_LINK_EXPIRES_MINUTES` | Magic link expiration time (default 10) |
 | `NEXT_PUBLIC_APP_URL` | Public app URL |
 
 For Google SMTP, enable 2-Step Verification and generate an App Password for `SMTP_PASS`.

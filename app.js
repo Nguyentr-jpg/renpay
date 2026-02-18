@@ -1290,6 +1290,70 @@ const switchTab = (tab) => {
   });
 };
 
+const applyAuthenticatedSession = async (data) => {
+  if (!data || !data.user) return false;
+
+  state.orders = [];
+  state.payments = [];
+  state.leafBalance = 0;
+  localStorage.removeItem(STORAGE_KEY);
+
+  state.user = data.user;
+  state.subscribed = Boolean(data.subscription);
+  sessionStorage.setItem(SESSION_KEY, JSON.stringify(data.user));
+  showApp(data.user);
+
+  await fetchOrdersFromDB();
+  await fetchWalletFromDB();
+  await fetchSubscriptionStatus();
+
+  return true;
+};
+
+const getAuthTokenFromUrl = () => {
+  try {
+    const url = new URL(window.location.href);
+    return String(url.searchParams.get("auth_token") || "").trim();
+  } catch (err) {
+    return "";
+  }
+};
+
+const clearAuthTokenFromUrl = () => {
+  try {
+    const url = new URL(window.location.href);
+    url.searchParams.delete("auth_token");
+    const next = `${url.pathname}${url.search}${url.hash}`;
+    window.history.replaceState({}, document.title, next);
+  } catch (err) {
+    // no-op
+  }
+};
+
+const verifyMagicLinkToken = async (authToken) => {
+  if (!authToken) return false;
+  try {
+    const response = await fetch("/api/auth", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "verify_magic_link", token: authToken }),
+    });
+    const data = await response.json();
+    if (!response.ok || !data.success || !data.user) {
+      alert(data.error || "Sign-in link is invalid or expired.");
+      return false;
+    }
+    await applyAuthenticatedSession(data);
+    return true;
+  } catch (err) {
+    console.error("Magic link verification error:", err);
+    alert("Could not verify sign-in link. Please try again.");
+    return false;
+  } finally {
+    clearAuthTokenFromUrl();
+  }
+};
+
 const setupEvents = () => {
   el("btnLogin").addEventListener("click", async () => {
     const email = el("loginEmail").value.trim();
@@ -1300,33 +1364,19 @@ const setupEvents = () => {
 
     const btn = el("btnLogin");
     btn.disabled = true;
-    btn.textContent = "Signing in...";
+    btn.textContent = "Sending link...";
 
     try {
       const response = await fetch("/api/auth", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ action: "send_magic_link", email }),
       });
 
       const data = await response.json();
 
-      if (data.success && data.user) {
-        // Clear previous user's data
-        state.orders = [];
-        state.payments = [];
-        state.leafBalance = 0;
-        localStorage.removeItem(STORAGE_KEY);
-
-        state.user = data.user;
-        state.subscribed = Boolean(data.subscription);
-        sessionStorage.setItem(SESSION_KEY, JSON.stringify(data.user));
-        showApp(data.user);
-
-        // Fetch current user's orders from database
-        await fetchOrdersFromDB();
-        await fetchWalletFromDB();
-        await fetchSubscriptionStatus();
+      if (response.ok && data.success) {
+        alert(data.message || "Sign-in link sent. Check your email inbox.");
       } else {
         alert(data.error || "Sign in failed. Please try again.");
       }
@@ -1336,7 +1386,7 @@ const setupEvents = () => {
     }
 
     btn.disabled = false;
-    btn.textContent = "Sign in";
+    btn.textContent = "Send sign-in link";
   });
 
   el("btnLogout").addEventListener("click", () => {
@@ -1702,6 +1752,23 @@ const init = () => {
   renderPayments();
   renderLineItems();
   setupEvents();
+  el("btnLogin").textContent = "Send sign-in link";
+
+  const authToken = getAuthTokenFromUrl();
+  if (authToken) {
+    verifyMagicLinkToken(authToken).then((ok) => {
+      if (!ok) {
+        const hasSession = restoreSession();
+        if (hasSession) {
+          fetchOrdersFromDB();
+          fetchWalletFromDB();
+          fetchSubscriptionStatus();
+        }
+      }
+    });
+    return;
+  }
+
   // Restore session if user was previously logged in
   const hasSession = restoreSession();
   // Fetch latest data from database in background

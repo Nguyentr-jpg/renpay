@@ -266,6 +266,15 @@ async function sendBrevoEmail(payload) {
   };
 }
 
+function getBrevoSender() {
+  const senderEmail = process.env.BREVO_SENDER_EMAIL || process.env.BREVO_FROM_EMAIL;
+  if (!senderEmail) return null;
+  return {
+    email: senderEmail,
+    name: process.env.BREVO_SENDER_NAME || "Renpay",
+  };
+}
+
 async function sendSmtpEmail({ toEmail, toName, subject, textContent, htmlContent }) {
   const normalizedEmail = normalizeEmail(toEmail);
   if (!normalizedEmail) {
@@ -295,6 +304,84 @@ async function sendSmtpEmail({ toEmail, toName, subject, textContent, htmlConten
     messageId: info && info.messageId ? info.messageId : null,
     provider: "smtp",
   };
+}
+
+async function sendMagicLinkEmail({ toEmail, toName, loginUrl, expiresMinutes }) {
+  const normalizedEmail = normalizeEmail(toEmail);
+  if (!normalizedEmail) {
+    return { sent: false, skipped: true, reason: "recipient email missing" };
+  }
+
+  const recipientName = String(toName || "").trim() || normalizedEmail.split("@")[0];
+  const safeName = escapeHtml(recipientName);
+  const safeUrl = escapeHtml(loginUrl || "");
+  const ttl = Number(expiresMinutes || 10);
+
+  const subject = "Your Renpay sign-in link";
+  const textContent = [
+    `Hi ${recipientName},`,
+    "",
+    "Use this secure link to sign in to Renpay:",
+    loginUrl || "",
+    "",
+    `This link expires in ${ttl} minutes.`,
+    "If you did not request this email, you can ignore it.",
+  ].join("\n");
+  const htmlContent = `<!doctype html>
+<html>
+  <body style="margin:0;background:#f6f6f6;font-family:Arial,sans-serif;color:#111827;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="padding:24px 12px;">
+      <tr>
+        <td align="center">
+          <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;">
+            <tr>
+              <td style="padding:20px 20px 8px;font-size:24px;font-weight:700;">Renpay</td>
+            </tr>
+            <tr>
+              <td style="padding:0 20px 12px;font-size:16px;line-height:1.6;">
+                Hi <strong>${safeName}</strong>, use this secure link to sign in.
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:0 20px 16px;">
+                <a href="${safeUrl}" style="display:inline-block;padding:12px 18px;background:#111827;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:700;">Sign in to Renpay</a>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:0 20px 16px;font-size:14px;line-height:1.6;color:#4b5563;">
+                This link expires in ${ttl} minutes. If you did not request this email, you can ignore it.
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+
+  if (shouldUseSmtp()) {
+    return sendSmtpEmail({
+      toEmail: normalizedEmail,
+      toName: recipientName,
+      subject,
+      textContent,
+      htmlContent,
+    });
+  }
+
+  const sender = getBrevoSender();
+  if (!sender) {
+    return { sent: false, skipped: true, reason: "BREVO_SENDER_EMAIL missing" };
+  }
+
+  return sendBrevoEmail({
+    sender,
+    to: [{ email: normalizedEmail, name: recipientName }],
+    subject,
+    textContent,
+    htmlContent,
+    tags: ["auth", "magic_link"],
+  });
 }
 
 async function sendOrderPaidEmail({
@@ -338,17 +425,16 @@ async function sendOrderPaidEmail({
     });
   }
 
-  const senderEmail = process.env.BREVO_SENDER_EMAIL || process.env.BREVO_FROM_EMAIL;
-  if (!senderEmail) {
+  const sender = getBrevoSender();
+  if (!sender) {
     return { sent: false, skipped: true, reason: "BREVO_SENDER_EMAIL missing" };
   }
-  const senderName = process.env.BREVO_SENDER_NAME || "Renpay";
   const templateIdRaw = process.env.BREVO_TEMPLATE_ORDER_PAID;
   const templateId = Number(templateIdRaw);
 
   if (templateIdRaw && Number.isFinite(templateId) && templateId > 0) {
     return sendBrevoEmail({
-      sender: { email: senderEmail, name: senderName },
+      sender,
       to: [{ email: normalizedEmail, name: recipientName }],
       templateId,
       params: {
@@ -364,7 +450,7 @@ async function sendOrderPaidEmail({
   }
 
   return sendBrevoEmail({
-    sender: { email: senderEmail, name: senderName },
+    sender,
     to: [{ email: normalizedEmail, name: recipientName }],
     subject,
     textContent,
@@ -374,5 +460,6 @@ async function sendOrderPaidEmail({
 }
 
 module.exports = {
+  sendMagicLinkEmail,
   sendOrderPaidEmail,
 };
