@@ -200,6 +200,22 @@ const formatLedgerDate = (value) => {
   return date.toISOString().slice(0, 10);
 };
 
+const getClientIdOptions = () => {
+  const ids = new Set();
+  (state.orders || []).forEach((order) => {
+    const value = String((order && order.clientId) || "").trim();
+    if (value) ids.add(value);
+  });
+  return Array.from(ids).sort((a, b) => a.localeCompare(b));
+};
+
+const renderClientIdOptions = () => {
+  const list = el("clientIdOptions");
+  if (!list) return;
+  const options = getClientIdOptions();
+  list.innerHTML = options.map((id) => `<option value="${id}"></option>`).join("");
+};
+
 const renderStats = () => {
   const row = el("statsRow");
   const total = state.orders.length;
@@ -253,6 +269,7 @@ const getFilteredOrders = () => {
 const renderOrders = () => {
   const list = el("orderList");
   list.innerHTML = "";
+  renderClientIdOptions();
 
   renderStats();
 
@@ -335,7 +352,7 @@ const renderLineItems = (items = []) => {
   data.forEach((item) => addLineItem(item));
 };
 
-const addLineItem = (item = { type: "", count: 0, link: "", unitPrice: 0 }) => {
+const addLineItem = (item = { type: "", count: 0, link: "", unitPrice: 0, clientId: "" }) => {
   const container = el("lineItems");
   const row = document.createElement("div");
   row.className = "line-item";
@@ -347,6 +364,7 @@ const addLineItem = (item = { type: "", count: 0, link: "", unitPrice: 0 }) => {
       <button class="price-btn" data-price>...</button>
       <div class="price-hint">Unit price: $<span>${Number(item.unitPrice || 0).toFixed(2)}</span></div>
     </div>
+    <input data-field="clientId" type="text" list="clientIdOptions" placeholder="Client ID" value="${item.clientId || ""}" />
     <input data-field="link" type="text" placeholder="Link" value="${item.link}" />
     <button class="btn ghost" data-remove>–</button>
   `;
@@ -1345,15 +1363,15 @@ const createOrder = async () => {
   }
 
   const rows = Array.from(el("lineItems").children);
-  const clientIdInput = el("createClientId");
-  const inputClientId = String((clientIdInput && clientIdInput.value) || "").trim();
   const items = rows.map((row) => {
     const typeInput = row.querySelector('[data-field="type"]');
     const countInput = row.querySelector('[data-field="count"]');
+    const clientIdInput = row.querySelector('[data-field="clientId"]');
     const linkInput = row.querySelector('[data-field="link"]');
     return {
       type: typeInput ? typeInput.value.trim() : "",
       count: Number((countInput && countInput.value) || 0),
+      clientId: clientIdInput ? clientIdInput.value.trim() : "",
       link: linkInput ? linkInput.value.trim() : "",
       unitPrice: Number(row.dataset.unitPrice || 0),
     };
@@ -1393,7 +1411,7 @@ const createOrder = async () => {
   for (const item of validItems) {
     const displayName = ensureDatePrefix(item.type, createdAt);
     const amount = Number((item.count * (item.unitPrice || 0)).toFixed(2));
-    const clientId = inputClientId || `CLI-${Math.floor(Math.random() * 90000 + 10000)}`;
+    const clientId = item.clientId || `CLI-${Math.floor(Math.random() * 90000 + 10000)}`;
 
     // Fetch media files if link is provided
     let mediaFiles = null;

@@ -400,7 +400,7 @@ main {
 
 .line-item {
   display: grid;
-  grid-template-columns: 1.4fr 1fr 1.4fr 80px;
+  grid-template-columns: 1.35fr 0.9fr 0.75fr 1.2fr 80px;
   gap: 10px;
   margin-bottom: 10px;
 }
@@ -992,11 +992,27 @@ main {
   .order-row div:nth-child(5) {
     grid-column: span 3;
   }
+  .line-item {
+    grid-template-columns: 1fr 1fr;
+  }
+  .line-item > input[data-field="type"] {
+    grid-column: span 2;
+  }
+  .line-item > input[data-field="link"] {
+    grid-column: span 2;
+  }
 }
 
 @media (max-width: 700px) {
   .gallery-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .line-item {
+    grid-template-columns: 1fr;
+  }
+  .line-item > input[data-field="type"],
+  .line-item > input[data-field="link"] {
+    grid-column: span 1;
   }
 }
 
