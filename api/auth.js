@@ -32,6 +32,23 @@ function getErrorHint(error) {
   return "Database query failed. Check database schema and environment variables.";
 }
 
+function envFlag(value) {
+  if (typeof value !== "string") return false;
+  return ["1", "true", "yes", "on"].includes(value.trim().toLowerCase());
+}
+
+function getAllowedEmails() {
+  const raw = String(process.env.AUTH_ALLOWED_EMAILS || "").trim();
+  if (!raw) return new Set();
+
+  return new Set(
+    raw
+      .split(",")
+      .map((item) => item.trim().toLowerCase())
+      .filter(Boolean)
+  );
+}
+
 module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -60,7 +77,15 @@ module.exports = async function handler(req, res) {
 
     const db = getPrisma();
 
-    // Find existing user or create new one
+    const allowedEmails = getAllowedEmails();
+    if (allowedEmails.size > 0 && !allowedEmails.has(normalizedEmail)) {
+      return res.status(403).json({
+        error: "This email is not allowed to sign in.",
+        code: "EMAIL_NOT_ALLOWED",
+      });
+    }
+
+    // Find existing user
     let user = await db.user.findUnique({
       where: { email: normalizedEmail },
       select: {
@@ -74,6 +99,13 @@ module.exports = async function handler(req, res) {
     });
 
     if (!user) {
+      if (!envFlag(process.env.AUTH_AUTO_SIGNUP)) {
+        return res.status(401).json({
+          error: "Account not found. Please contact admin to create your account.",
+          code: "ACCOUNT_NOT_FOUND",
+        });
+      }
+
       user = await db.user.create({
         data: {
           email: normalizedEmail,

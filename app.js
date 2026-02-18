@@ -1332,19 +1332,7 @@ const setupEvents = () => {
       }
     } catch (err) {
       console.error("Login error:", err);
-      // Fallback: allow offline login with email only
-      // Clear previous user's data
-      state.orders = [];
-      state.payments = [];
-      state.leafBalance = 0;
-      localStorage.removeItem(STORAGE_KEY);
-
-      const fallbackUser = { id: null, email, name: email.split("@")[0], role: "CLIENT" };
-      state.user = fallbackUser;
-      state.subscribed = false;
-      sessionStorage.setItem(SESSION_KEY, JSON.stringify(fallbackUser));
-      showApp(fallbackUser);
-      await fetchWalletFromDB();
+      alert("Authentication service is unavailable. Please try again.");
     }
 
     btn.disabled = false;

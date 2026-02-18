@@ -87,6 +87,8 @@ Copy `.env.example` to `.env.local` for local development. For Vercel, add these
 | `BREVO_SANDBOX_MODE` | `true` to test send without real delivery |
 | `NEXTAUTH_URL` | App URL (e.g. `https://renpay.vercel.app`) |
 | `NEXTAUTH_SECRET` | Auth secret (`openssl rand -base64 32`) |
+| `AUTH_AUTO_SIGNUP` | `false` to block unknown emails from auto-creating accounts |
+| `AUTH_ALLOWED_EMAILS` | Optional CSV email allowlist for sign-in |
 | `NEXT_PUBLIC_APP_URL` | Public app URL |
 
 For Google SMTP, enable 2-Step Verification and generate an App Password for `SMTP_PASS`.
