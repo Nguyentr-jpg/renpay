@@ -1,5 +1,4 @@
 const nodemailer = require("nodemailer");
-const BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
 let smtpTransporter = null;
 
 function toMoney(value) {
@@ -16,33 +15,13 @@ function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || "").trim());
 }
 
-function envFlag(value) {
-  if (typeof value !== "string") return false;
-  return ["1", "true", "yes", "on"].includes(value.trim().toLowerCase());
-}
-
-function normalizeProvider(value) {
-  return String(value || "")
-    .trim()
-    .toLowerCase();
-}
-
-function getMailProvider() {
-  return normalizeProvider(process.env.MAIL_PROVIDER || "");
-}
-
-function shouldUseSmtp() {
-  const provider = getMailProvider();
-  if (["smtp", "google", "gmail", "google_smtp"].includes(provider)) return true;
-  if (provider === "brevo") return false;
-  return Boolean(process.env.SMTP_HOST || process.env.SMTP_USER || process.env.SMTP_PASS);
-}
-
 function getSmtpConfig() {
   const host = String(process.env.SMTP_HOST || "smtp.gmail.com").trim();
   const port = Number(process.env.SMTP_PORT || 587);
-  const secure =
-    envFlag(process.env.SMTP_SECURE) || (!Number.isNaN(port) && Number(port) === 465);
+  const secureFlag = String(process.env.SMTP_SECURE || "")
+    .trim()
+    .toLowerCase();
+  const secure = ["1", "true", "yes", "on"].includes(secureFlag) || (!Number.isNaN(port) && Number(port) === 465);
   const user = String(process.env.SMTP_USER || "").trim();
   const pass = String(process.env.SMTP_PASS || "").trim();
   const fromEmail = String(process.env.SMTP_FROM_EMAIL || user).trim();
@@ -240,45 +219,6 @@ function buildHtmlOrderPaidEmail({
 </html>`;
 }
 
-async function sendBrevoEmail(payload) {
-  const apiKey = process.env.BREVO_API_KEY;
-  if (!apiKey) {
-    return { sent: false, skipped: true, reason: "BREVO_API_KEY missing" };
-  }
-
-  const response = await fetch(BREVO_API_URL, {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      "api-key": apiKey,
-      ...(envFlag(process.env.BREVO_SANDBOX_MODE) ? { "X-Sib-Sandbox": "drop" } : {}),
-    },
-    body: JSON.stringify(payload),
-  });
-
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const detail = data && data.message ? data.message : `HTTP ${response.status}`;
-    throw new Error(`Brevo send failed: ${detail}`);
-  }
-
-  return {
-    sent: true,
-    skipped: false,
-    messageId: data && data.messageId ? data.messageId : null,
-  };
-}
-
-function getBrevoSender() {
-  const senderEmail = process.env.BREVO_SENDER_EMAIL || process.env.BREVO_FROM_EMAIL;
-  if (!senderEmail) return null;
-  return {
-    email: senderEmail,
-    name: process.env.BREVO_SENDER_NAME || "Renpay",
-  };
-}
-
 async function sendSmtpEmail({ toEmail, toName, subject, textContent, htmlContent }) {
   const normalizedEmail = normalizeEmail(toEmail);
   if (!normalizedEmail) {
@@ -375,28 +315,12 @@ async function sendMagicLinkEmail({ toEmail, toName, loginUrl, signInCode, expir
   </body>
 </html>`;
 
-  if (shouldUseSmtp()) {
-    return sendSmtpEmail({
-      toEmail: normalizedEmail,
-      toName: recipientName,
-      subject,
-      textContent,
-      htmlContent,
-    });
-  }
-
-  const sender = getBrevoSender();
-  if (!sender) {
-    return { sent: false, skipped: true, reason: "BREVO_SENDER_EMAIL missing" };
-  }
-
-  return sendBrevoEmail({
-    sender,
-    to: [{ email: normalizedEmail, name: recipientName }],
+  return sendSmtpEmail({
+    toEmail: normalizedEmail,
+    toName: recipientName,
     subject,
     textContent,
     htmlContent,
-    tags: ["auth", "magic_link"],
   });
 }
 
@@ -431,47 +355,12 @@ async function sendOrderPaidEmail({
     appUrl: appUrl || process.env.NEXT_PUBLIC_APP_URL || "https://renpay.vercel.app",
   });
 
-  if (shouldUseSmtp()) {
-    return sendSmtpEmail({
-      toEmail: normalizedEmail,
-      toName: recipientName,
-      subject,
-      textContent,
-      htmlContent,
-    });
-  }
-
-  const sender = getBrevoSender();
-  if (!sender) {
-    return { sent: false, skipped: true, reason: "BREVO_SENDER_EMAIL missing" };
-  }
-  const templateIdRaw = process.env.BREVO_TEMPLATE_ORDER_PAID;
-  const templateId = Number(templateIdRaw);
-
-  if (templateIdRaw && Number.isFinite(templateId) && templateId > 0) {
-    return sendBrevoEmail({
-      sender,
-      to: [{ email: normalizedEmail, name: recipientName }],
-      templateId,
-      params: {
-        customer_name: recipientName,
-        paid_order_count: Array.isArray(paidOrders) ? paidOrders.length : 0,
-        total_amount: toMoney(totalAmount).toFixed(2),
-        leaf_balance: toMoney(leafBalance).toFixed(2),
-        orders_summary: ordersSummary || "-",
-        app_url: appUrl || process.env.NEXT_PUBLIC_APP_URL || "https://renpay.vercel.app",
-      },
-      tags: ["order_paid", "leaf"],
-    });
-  }
-
-  return sendBrevoEmail({
-    sender,
-    to: [{ email: normalizedEmail, name: recipientName }],
+  return sendSmtpEmail({
+    toEmail: normalizedEmail,
+    toName: recipientName,
     subject,
     textContent,
     htmlContent,
-    tags: ["order_paid", "leaf"],
   });
 }
 
@@ -544,28 +433,12 @@ async function sendOrderCreatedEmail({
   </body>
 </html>`;
 
-  if (shouldUseSmtp()) {
-    return sendSmtpEmail({
-      toEmail: normalizedEmail,
-      toName: recipientName,
-      subject,
-      textContent,
-      htmlContent,
-    });
-  }
-
-  const sender = getBrevoSender();
-  if (!sender) {
-    return { sent: false, skipped: true, reason: "BREVO_SENDER_EMAIL missing" };
-  }
-
-  return sendBrevoEmail({
-    sender,
-    to: [{ email: normalizedEmail, name: recipientName }],
+  return sendSmtpEmail({
+    toEmail: normalizedEmail,
+    toName: recipientName,
     subject,
     textContent,
     htmlContent,
-    tags: ["order_created"],
   });
 }
 
@@ -643,28 +516,12 @@ async function sendSubscriptionStatusEmail({
   </body>
 </html>`;
 
-  if (shouldUseSmtp()) {
-    return sendSmtpEmail({
-      toEmail: normalizedEmail,
-      toName: recipientName,
-      subject,
-      textContent,
-      htmlContent,
-    });
-  }
-
-  const sender = getBrevoSender();
-  if (!sender) {
-    return { sent: false, skipped: true, reason: "BREVO_SENDER_EMAIL missing" };
-  }
-
-  return sendBrevoEmail({
-    sender,
-    to: [{ email: normalizedEmail, name: recipientName }],
+  return sendSmtpEmail({
+    toEmail: normalizedEmail,
+    toName: recipientName,
     subject,
     textContent,
     htmlContent,
-    tags: ["subscription", isCanceled ? "subscription_canceled" : "subscription_activated"],
   });
 }
 
@@ -722,28 +579,12 @@ async function sendReferralInviteEmail({ toEmail, toName, referrerName, inviteUr
   </body>
 </html>`;
 
-  if (shouldUseSmtp()) {
-    return sendSmtpEmail({
-      toEmail: normalizedEmail,
-      toName: recipientName,
-      subject,
-      textContent,
-      htmlContent,
-    });
-  }
-
-  const sender = getBrevoSender();
-  if (!sender) {
-    return { sent: false, skipped: true, reason: "BREVO_SENDER_EMAIL missing" };
-  }
-
-  return sendBrevoEmail({
-    sender,
-    to: [{ email: normalizedEmail, name: recipientName }],
+  return sendSmtpEmail({
+    toEmail: normalizedEmail,
+    toName: recipientName,
     subject,
     textContent,
     htmlContent,
-    tags: ["referral_invite"],
   });
 }
 
@@ -801,28 +642,12 @@ async function sendReferralInviteSentEmail({ toEmail, toName, inviteeEmail, invi
   </body>
 </html>`;
 
-  if (shouldUseSmtp()) {
-    return sendSmtpEmail({
-      toEmail: normalizedEmail,
-      toName: recipientName,
-      subject,
-      textContent,
-      htmlContent,
-    });
-  }
-
-  const sender = getBrevoSender();
-  if (!sender) {
-    return { sent: false, skipped: true, reason: "BREVO_SENDER_EMAIL missing" };
-  }
-
-  return sendBrevoEmail({
-    sender,
-    to: [{ email: normalizedEmail, name: recipientName }],
+  return sendSmtpEmail({
+    toEmail: normalizedEmail,
+    toName: recipientName,
     subject,
     textContent,
     htmlContent,
-    tags: ["referral_invite_sender"],
   });
 }
 
