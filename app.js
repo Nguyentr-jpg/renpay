@@ -1833,8 +1833,28 @@ const setLoginChallengeActive = (active) => {
   loginBtn.textContent = active ? "Resend sign-in link" : "Sign in";
 };
 
+const setLoginControlsDisabled = (disabled, signInLabel) => {
+  const btnLogin = el("btnLogin");
+  const btnLoginCode = el("btnLoginCode");
+  const loginEmail = el("loginEmail");
+  const loginCode = el("loginCode");
+  if (btnLogin) {
+    btnLogin.disabled = Boolean(disabled);
+    if (typeof signInLabel === "string" && signInLabel) {
+      btnLogin.textContent = signInLabel;
+    }
+  }
+  if (btnLoginCode) btnLoginCode.disabled = Boolean(disabled);
+  if (loginEmail) loginEmail.disabled = Boolean(disabled);
+  if (loginCode) loginCode.disabled = Boolean(disabled);
+};
+
 const setupEvents = () => {
   el("btnLogin").addEventListener("click", async () => {
+    // If session cookie is still valid (14-day remember login), sign in directly.
+    const resumed = await restoreSession();
+    if (resumed) return;
+
     const email = el("loginEmail").value.trim();
     if (!email) {
       alert("Please enter your email.");
@@ -2348,6 +2368,7 @@ const init = async () => {
   renderNotifications();
   setupEvents();
   setLoginChallengeActive(false);
+  setLoginControlsDisabled(true, "Checking session...");
 
   const authToken = getAuthTokenFromUrl();
   if (authToken) {
@@ -2355,10 +2376,12 @@ const init = async () => {
     if (!ok) {
       await restoreSession();
     }
+    setLoginControlsDisabled(false);
     return;
   }
 
   await restoreSession();
+  setLoginControlsDisabled(false);
 };
 
 init();
