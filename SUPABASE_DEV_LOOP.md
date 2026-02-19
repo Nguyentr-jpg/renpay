@@ -4,7 +4,33 @@
 - Keep app features and Supabase schema in sync.
 - For every DB-related feature, always provide SQL migration steps for manual paste in Supabase SQL Editor.
 
+## Current Production Snapshot (2026-02-19)
+
+### Core schema updates already applied
+- `orders.client_email` added.
+- `client_profiles` table added:
+  - `id uuid` PK
+  - `user_id uuid` FK -> `users.id`
+  - `client_id varchar(100)` (unique per user)
+  - `client_email varchar(255)` (unique per user, case-insensitive)
+  - `client_name varchar(255)`
+  - `created_at`, `updated_at`
+- `subscriptions` plan constraint applied:
+  - `ck_subscriptions_plan`
+  - allowed values:
+    - `personal_monthly`
+    - `personal_annual`
+    - `business_monthly`
+    - `business_annual`
+
 ## Current Known RLS Policies (from production export)
+
+### `client_profiles`
+- `Service role has full access to client_profiles` (`ALL`)
+- `Users can view own client_profiles` (`SELECT` with `auth.uid() = user_id`)
+- `Users can insert own client_profiles` (`INSERT` with `auth.uid() = user_id`)
+- `Users can update own client_profiles` (`UPDATE` with `auth.uid() = user_id`)
+- `Users can delete own client_profiles` (`DELETE` with `auth.uid() = user_id`)
 
 ### `files`
 - `Service role has full access to files` (`ALL`)
@@ -30,7 +56,23 @@
 ### `users`
 - `Service role has full access to users` (`ALL`)
 - `Users can update own profile` (`UPDATE` with `auth.uid() = id`)
-- `Users can view own profile` (`SELECT`, currently `qual = true`)
+- `Users can view own profile` (`SELECT` with `auth.uid() = id`)
+
+### `subscriptions`
+- `Service role has full access to subscriptions` (`ALL`)
+- `Users can view own subscriptions` (`SELECT` with `auth.uid() = user_id`)
+
+### `referral_invites`
+- `Service role has full access to referral_invites` (`ALL`)
+- `Users can view own referral invites` (`SELECT` by `referrer_user_id = auth.uid()` or `invitee_email = jwt.email`)
+
+### `wallets`
+- `Service role has full access to wallets` (`ALL`)
+- `Users can view own wallet` (`SELECT` with `auth.uid() = user_id`)
+
+### `wallet_ledgers`
+- `Service role has full access to wallet_ledgers` (`ALL`)
+- `Users can view own wallet ledgers` (`SELECT` with `auth.uid() = user_id`)
 
 ## Required Workflow For Any DB-Related Feature
 1. Define feature data contract first (new column/table/index/constraint/policy).
@@ -82,5 +124,8 @@ order by tablename, policyname;
 ```
 
 ## Important Notes
-- Policy `Users can view own profile` on `users` is currently broad (`qual = true`). Treat this as a review item when touching user privacy/security.
+- Future DB features must update this file with:
+  - new/changed columns
+  - new constraints/indexes
+  - RLS/policy deltas
 - This file is the default DB synchronization loop for future development in this repo.
