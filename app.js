@@ -1863,7 +1863,7 @@ const setupEvents = () => {
 
     const btn = el("btnLogin");
     btn.disabled = true;
-    btn.textContent = "Sending sign-in link...";
+    btn.textContent = "Signing...";
 
     try {
       const response = await fetch("/api/auth", {
@@ -2368,7 +2368,7 @@ const init = async () => {
   renderNotifications();
   setupEvents();
   setLoginChallengeActive(false);
-  setLoginControlsDisabled(true, "Checking session...");
+  setLoginControlsDisabled(true, "Signing...");
 
   const authToken = getAuthTokenFromUrl();
   if (authToken) {
