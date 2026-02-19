@@ -49,6 +49,7 @@ const state = {
     unread: 0,
     open: false,
   },
+  userMenuOpen: false,
   lang: "en",
 };
 
@@ -955,6 +956,19 @@ const renderNotifications = () => {
     `
     )
     .join("");
+};
+
+const renderUserMenu = () => {
+  const panel = el("userMenuPanel");
+  const badge = el("userBadge");
+  if (!panel || !badge) return;
+  panel.classList.toggle("hidden", !state.userMenuOpen || !state.user);
+  badge.classList.toggle("active", Boolean(state.userMenuOpen));
+};
+
+const toggleUserMenu = () => {
+  state.userMenuOpen = !state.userMenuOpen;
+  renderUserMenu();
 };
 
 const markNotificationsRead = () => {
@@ -2433,10 +2447,14 @@ const clearClientSessionState = () => {
   state.planFeatures = null;
   state.usage = { ordersToday: 0, ordersThisWeek: 0 };
   state.referral = { stats: { total: 0, pending: 0, rewarded: 0 }, invites: [] };
+  state.userMenuOpen = false;
   localStorage.removeItem(STORAGE_KEY);
   el("loginScreen").classList.remove("hidden");
   el("appScreen").classList.add("hidden");
   el("userBadge").classList.add("hidden");
+  if (el("userMenuPanel")) {
+    el("userMenuPanel").classList.add("hidden");
+  }
   if (el("btnNotifications")) {
     el("btnNotifications").classList.add("hidden");
   }
@@ -2619,6 +2637,8 @@ const setupEvents = () => {
   });
 
   el("btnLogout").addEventListener("click", async () => {
+    state.userMenuOpen = false;
+    renderUserMenu();
     try {
       await fetch("/api/auth", {
         method: "POST",
@@ -2636,12 +2656,21 @@ const setupEvents = () => {
     toggleNotificationsPanel();
   });
 
+  el("userBadge").addEventListener("click", (event) => {
+    event.stopPropagation();
+    toggleUserMenu();
+  });
+
   document.addEventListener("click", (event) => {
-    const wrap = document.querySelector(".notif-wrap");
-    if (!wrap || !state.notifications.open) return;
-    if (!wrap.contains(event.target)) {
+    const notifWrap = document.querySelector(".notif-wrap");
+    if (notifWrap && state.notifications.open && !notifWrap.contains(event.target)) {
       state.notifications.open = false;
       renderNotifications();
+    }
+    const userMenuWrap = document.querySelector(".user-menu-wrap");
+    if (userMenuWrap && state.userMenuOpen && !userMenuWrap.contains(event.target)) {
+      state.userMenuOpen = false;
+      renderUserMenu();
     }
   });
 
@@ -2753,6 +2782,8 @@ const setupEvents = () => {
   });
 
   el("btnOpenFeedback").addEventListener("click", () => {
+    state.userMenuOpen = false;
+    renderUserMenu();
     el("feedbackModal").classList.remove("hidden");
   });
 
@@ -3048,6 +3079,8 @@ const showApp = (user) => {
   updatePlanBadge();
   el("userBadge").textContent = user.email;
   el("userBadge").classList.remove("hidden");
+  state.userMenuOpen = false;
+  renderUserMenu();
   if (el("btnNotifications")) {
     el("btnNotifications").classList.remove("hidden");
   }

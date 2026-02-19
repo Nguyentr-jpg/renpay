@@ -72,6 +72,55 @@ body {
   font-size: 13px;
 }
 
+.user-menu-wrap {
+  position: relative;
+}
+
+.user-menu-toggle {
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+
+.user-menu-toggle:hover {
+  border-color: var(--border);
+}
+
+.user-menu-panel {
+  position: absolute;
+  right: 0;
+  top: 44px;
+  min-width: 200px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 18px 36px rgba(38, 22, 10, 0.16);
+  padding: 6px;
+  z-index: 35;
+  display: grid;
+  gap: 4px;
+}
+
+.user-menu-item {
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: #fff;
+  padding: 9px 10px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.user-menu-item:hover {
+  background: #faf3ec;
+  border-color: var(--border);
+}
+
+.user-menu-item.danger {
+  color: #9e2a2a;
+}
+
 .topbar-right {
   display: flex;
   align-items: center;
@@ -383,25 +432,6 @@ main {
 .nav-item.active {
   background: var(--accent);
   border-color: var(--border);
-}
-
-.support {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid #efe1d2;
-  display: grid;
-  gap: 8px;
-}
-
-.support-title {
-  font-weight: 700;
-  font-size: 14px;
-}
-
-.support-text {
-  font-size: 12px;
-  color: var(--muted);
-  margin: 0;
 }
 
 .feedback-options {

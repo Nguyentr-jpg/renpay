@@ -10,7 +10,7 @@
       href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=20260219-2" />
+    <link rel="stylesheet" href="styles.css?v=20260219-3" />
   </head>
   <body>
     <div id="app">
@@ -33,7 +33,13 @@
               <div id="notifList" class="notif-list"></div>
             </div>
           </div>
-          <div id="userBadge" class="user-badge hidden"></div>
+          <div class="user-menu-wrap">
+            <button id="userBadge" class="user-badge user-menu-toggle hidden" type="button"></button>
+            <div id="userMenuPanel" class="user-menu-panel hidden">
+              <button id="btnOpenFeedback" class="user-menu-item">Open feedback form</button>
+              <button id="btnLogout" class="user-menu-item danger">Sign out</button>
+            </div>
+          </div>
         </div>
       </header>
 
@@ -116,12 +122,6 @@
               <div class="side-actions">
                 <button id="btnOpenRefer" class="btn ghost side-btn">Refer and earn</button>
                 <button id="btnOpenUpgrade" class="btn side-upgrade-btn">Upgrade</button>
-              </div>
-              <div class="support">
-                <div id="feedbackTitle" class="support-title">Feedback</div>
-                <div id="feedbackSubtitle" class="support-text">Share a quick note or request.</div>
-                <button id="btnOpenFeedback" class="btn ghost">Open feedback form</button>
-                <button id="btnLogout" class="btn ghost">Sign out</button>
               </div>
             </aside>
 
@@ -414,6 +414,6 @@
       </div>
     </div>
 
-    <script src="app.js?v=20260219-2"></script>
+    <script src="app.js?v=20260219-3"></script>
   </body>
 </html>
