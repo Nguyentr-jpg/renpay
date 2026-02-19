@@ -192,9 +192,9 @@ const I18N = {
     referralInviteSent: "Invite sent.",
     referralSending: "Sending...",
     clientIdModalTitle: "Add client ID",
-    clientIdModalSub: "Create a client ID and optional buyer email for this row.",
+    clientIdModalSub: "Create a client ID and buyer email for this row.",
     clientIdModalLabel: "Client ID",
-    clientIdEmailLabel: "Buyer email (optional)",
+    clientIdEmailLabel: "Buyer email",
     newClientEmailPlaceholder: "buyer@email.com",
     newClientIdPlaceholder: "CLI-12345",
     btnSave: "Save",
@@ -223,6 +223,9 @@ const I18N = {
     statusSaving: "Saving...",
     alertEnterClientId: "Please enter client ID.",
     alertChooseAnotherClientId: "Please choose another client ID.",
+    alertEnterClientEmail: "Please enter buyer email.",
+    alertInvalidClientEmail: "Buyer email is invalid.",
+    alertClientInfoRequired: "Each order row must have Client ID and buyer email. Open Add client ID to set it.",
     alertLinkNotDisplayable:
       "This link cannot be previewed. Use a direct image link or Dropbox/Google Drive file link.",
     alertSignInFirst: "Please sign in first.",
@@ -431,9 +434,9 @@ const I18N = {
     referralInviteSent: "Đã gửi lời mời.",
     referralSending: "Đang gửi...",
     clientIdModalTitle: "Thêm client ID",
-    clientIdModalSub: "Tạo client ID và email khách (không bắt buộc) cho dòng này.",
+    clientIdModalSub: "Tạo client ID và email khách cho dòng này.",
     clientIdModalLabel: "Client ID",
-    clientIdEmailLabel: "Email khách hàng (không bắt buộc)",
+    clientIdEmailLabel: "Email khách hàng",
     newClientEmailPlaceholder: "buyer@email.com",
     newClientIdPlaceholder: "CLI-12345",
     btnSave: "Lưu",
@@ -462,6 +465,9 @@ const I18N = {
     statusSaving: "Đang lưu...",
     alertEnterClientId: "Vui lòng nhập client ID.",
     alertChooseAnotherClientId: "Vui lòng chọn client ID khác.",
+    alertEnterClientEmail: "Vui lòng nhập email khách hàng.",
+    alertInvalidClientEmail: "Email khách hàng không hợp lệ.",
+    alertClientInfoRequired: "Mỗi dòng đơn phải có Client ID và email khách hàng. Hãy mở Add client ID để thiết lập.",
     alertLinkNotDisplayable:
       "Liên kết này không xem trước được. Hãy dùng link ảnh trực tiếp hoặc link file Dropbox/Google Drive.",
     alertSignInFirst: "Vui lòng đăng nhập trước.",
@@ -557,6 +563,7 @@ const isAddNewClientIdOption = (value) => {
   if (!trimmed) return false;
   return [getAddNewClientIdOption(), ...ADD_NEW_CLIENT_ID_OPTION_FALLBACKS].includes(trimmed);
 };
+const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
 
 const loadLanguage = () => {
   const saved = String(localStorage.getItem(LANG_KEY) || "").trim().toLowerCase();
@@ -1109,6 +1116,14 @@ const saveNewClientId = () => {
   }
   if (isAddNewClientIdOption(value)) {
     alert(t("alertChooseAnotherClientId"));
+    return;
+  }
+  if (!buyerEmail) {
+    alert(t("alertEnterClientEmail"));
+    return;
+  }
+  if (!isValidEmail(buyerEmail)) {
+    alert(t("alertInvalidClientEmail"));
     return;
   }
   rememberClientId(value, buyerEmail);
@@ -2323,6 +2338,16 @@ const createOrder = async () => {
 
   if (!validItems.length) {
     alert(t("alertEnterOrderNameQuantity"));
+    return;
+  }
+
+  const missingClientInfo = validItems.some((item) => {
+    const clientId = String(item.clientId || "").trim();
+    const email = String(item.clientEmail || "").trim().toLowerCase();
+    return !clientId || !email || !isValidEmail(email);
+  });
+  if (missingClientInfo) {
+    alert(t("alertClientInfoRequired"));
     return;
   }
 
