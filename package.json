@@ -2,7 +2,8 @@
   "name": "renpay",
   "private": true,
   "scripts": {
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "db:check": "node scripts/db-check.js"
   },
   "dependencies": {
     "@prisma/client": "^6.3.1",

@@ -15,6 +15,14 @@ function getPrisma() {
   return prisma;
 }
 
+function parseDbHost(raw) {
+  try {
+    return new URL(String(raw || "")).hostname || "";
+  } catch (error) {
+    return "";
+  }
+}
+
 module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
@@ -29,6 +37,11 @@ module.exports = async function handler(req, res) {
     database: { status: "unknown" },
     environment: {
       DATABASE_URL: !!process.env.DATABASE_URL,
+      DATABASE_HOST: parseDbHost(process.env.DATABASE_URL),
+      DATABASE_LOOKS_SUPABASE:
+        parseDbHost(process.env.DATABASE_URL).includes("supabase.co") ||
+        parseDbHost(process.env.DATABASE_URL).includes("supabase.com") ||
+        parseDbHost(process.env.DATABASE_URL).includes("pooler.supabase"),
     },
   };
 

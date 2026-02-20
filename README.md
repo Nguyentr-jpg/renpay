@@ -89,6 +89,23 @@ Copy `.env.example` to `.env.local` for local development. For Vercel, add these
 
 For Google SMTP, enable 2-Step Verification and generate an App Password for `SMTP_PASS`.
 
+### Verify Supabase Connection
+
+After setting env vars, run:
+
+```bash
+npm run db:check
+```
+
+This command verifies:
+- `DATABASE_URL` format
+- current DB host (to confirm it is the intended Supabase project)
+- core table/column visibility (`users`, `orders`, `client_profiles`, `subscriptions`)
+- subscription cancel columns (`cancel_at_period_end`, `canceled_at`, `cancel_reason`)
+
+Runtime check endpoint:
+- `GET /api/health` returns `environment.DATABASE_HOST` and `environment.DATABASE_LOOKS_SUPABASE`.
+
 ### Post-Deployment Checklist
 
 - [ ] Verify the site loads at `https://renpay.vercel.app`

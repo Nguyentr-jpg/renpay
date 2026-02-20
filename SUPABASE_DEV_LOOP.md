@@ -3,6 +3,19 @@
 ## Goal
 - Keep app features and Supabase schema in sync.
 - For every DB-related feature, always provide SQL migration steps for manual paste in Supabase SQL Editor.
+- Keep a versioned schema snapshot in this file so future features do not drift from production.
+
+## Connection Guardrails (must pass before coding DB features)
+1. Set `DATABASE_URL` to the intended Supabase project.
+2. Run:
+   ```bash
+   npm run db:check
+   ```
+3. Confirm:
+   - printed DB host is the expected Supabase host/project
+   - core tables are visible
+   - required subscription columns exist
+4. If `db:check` fails, fix env first. Do not continue DB feature work on unknown DB.
 
 ## Current Production Snapshot (2026-02-19)
 
@@ -22,6 +35,10 @@
     - `personal_annual`
     - `business_monthly`
     - `business_annual`
+- `subscriptions` cancellation lifecycle columns expected:
+  - `cancel_at_period_end boolean not null default false`
+  - `canceled_at timestamptz null`
+  - `cancel_reason text null`
 
 ## Current Known RLS Policies (from production export)
 
@@ -85,6 +102,58 @@
 5. Add runtime fallback for old rows if migration not applied yet.
 6. Verify RLS impact for `anon`, `authenticated`, and `service_role`.
 7. Include a short post-migration verify query block.
+8. Update this file with a new snapshot entry (date + changes).
+
+## Snapshot Capture (run after each DB migration)
+Use this SQL in Supabase SQL Editor and paste the result summary into this file:
+
+```sql
+-- Tables + columns
+select
+  c.table_name,
+  c.ordinal_position,
+  c.column_name,
+  c.data_type,
+  c.is_nullable,
+  c.column_default
+from information_schema.columns c
+where c.table_schema = 'public'
+order by c.table_name, c.ordinal_position;
+
+-- Constraints
+select
+  n.nspname as schema_name,
+  t.relname as table_name,
+  con.conname as constraint_name,
+  pg_get_constraintdef(con.oid) as definition
+from pg_constraint con
+join pg_class t on t.oid = con.conrelid
+join pg_namespace n on n.oid = t.relnamespace
+where n.nspname = 'public'
+order by t.relname, con.conname;
+
+-- Indexes
+select
+  schemaname,
+  tablename,
+  indexname,
+  indexdef
+from pg_indexes
+where schemaname = 'public'
+order by tablename, indexname;
+
+-- RLS policies
+select
+  schemaname,
+  tablename,
+  policyname,
+  cmd,
+  qual,
+  with_check
+from pg_policies
+where schemaname = 'public'
+order by tablename, policyname;
+```
 
 ## Standard Migration Template
 ```sql
@@ -129,3 +198,5 @@ order by tablename, policyname;
   - new constraints/indexes
   - RLS/policy deltas
 - This file is the default DB synchronization loop for future development in this repo.
+- App-side DB verification command:
+  - `npm run db:check`
